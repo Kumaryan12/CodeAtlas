@@ -1,0 +1,13 @@
+{
+  "name": "codeatlas",
+  "private": true,
+  "workspaces": ["apps/web"],
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "dev": "npm run dev --workspace=@codeatlas/web",
+    "build": "npm run build --workspace=@codeatlas/web",
+    "start": "npm run start --workspace=@codeatlas/web",
+    "lint": "npm run lint --workspace=@codeatlas/web",
+    "typecheck": "npm run typecheck --workspace=@codeatlas/web"
+  }
+}
