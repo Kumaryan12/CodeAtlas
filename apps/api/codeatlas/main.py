@@ -9,9 +9,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from codeatlas.api.health import router as health_router
 from codeatlas.api.repositories import router as repository_router
+from codeatlas.core.body_limit import ImportBodyLimit
 from codeatlas.core.config import Settings
 from codeatlas.core.database import create_database_engine
 from codeatlas.core.errors import DomainError
+from codeatlas.core.logging import configure_logging
 
 logger = logging.getLogger("codeatlas.api")
 
@@ -19,6 +21,7 @@ logger = logging.getLogger("codeatlas.api")
 def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        configure_logging()
         app.state.settings = settings or Settings()
         app.state.database = create_database_engine(app.state.settings)
         app.state.import_lock = threading.Lock()
@@ -28,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.database.dispose()
 
     app = FastAPI(title="CodeAtlas API", version="0.2.0", lifespan=lifespan)
+    app.add_middleware(ImportBodyLimit)
     app.include_router(health_router, prefix="/api")
     app.include_router(repository_router, prefix="/api")
 

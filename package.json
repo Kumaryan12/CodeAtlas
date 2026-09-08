@@ -12,6 +12,7 @@
     "build": "npm run build --workspace=@codeatlas/web",
     "start": "npm run start --workspace=@codeatlas/web",
     "lint": "npm run lint --workspace=@codeatlas/web",
-    "typecheck": "npm run typecheck --workspace=@codeatlas/web"
+    "typecheck": "npm run typecheck --workspace=@codeatlas/web",
+    "test": "npm run test --workspace=@codeatlas/web"
   }
 }

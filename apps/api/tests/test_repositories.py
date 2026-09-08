@@ -147,3 +147,31 @@ def test_malformed_identifiers_and_pagination(api, path):
 
 def test_unknown_snapshot(api):
     assert api.get(f"/api/repositories/{uuid4()}").status_code == 404
+
+
+def test_large_json_body_rejected_before_validation(api):
+    response = api.post("/api/repositories", json={"url": "x" * 5000})
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "request_too_large"
+
+
+def test_database_failure_rolls_back_all_files(api, fake_download):
+    from sqlalchemy.exc import OperationalError
+
+    engine = api.app.state.database
+    failed = False
+
+    @event.listens_for(engine, "before_cursor_execute")
+    def fail_symbol_write(connection, cursor, statement, parameters, context, executemany):
+        nonlocal failed
+        if not failed and statement.startswith("INSERT INTO code_symbols"):
+            failed = True
+            raise OperationalError(statement, {}, Exception("private database details"))
+
+    response = api.post("/api/repositories", json={"url": "https://github.com/a/b"})
+    assert response.status_code == 503
+    assert "private database details" not in response.text
+    repo = api.get("/api/repositories").json()["items"][0]
+    assert repo["status"] == "failed"
+    assert repo["file_count"] == 0
+    assert api.get(f"/api/repositories/{repo['id']}/files").json()["items"] == []

@@ -5,6 +5,8 @@ from collections import Counter
 from pathlib import Path
 
 import httpx
+from sqlalchemy import update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from codeatlas.core.config import Settings
@@ -22,6 +24,7 @@ def import_repository(session: Session, url: str, settings: Settings) -> Reposit
     repository = Repository(url=address.url, full_name=address.full_name)
     session.add(repository)
     session.commit()
+    repository_id = repository.id
     started = time.monotonic()
     try:
         settings.workspace_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -98,3 +101,20 @@ def import_repository(session: Session, url: str, settings: Settings) -> Reposit
         repository.error_message = "Cannot create or process the temporary repository workspace."
         session.commit()
         raise DomainError(repository.error_code, repository.error_message, 503) from exc
+
+    except SQLAlchemyError:
+        session.rollback()
+        try:
+            session.execute(
+                update(Repository)
+                .where(Repository.id == repository_id)
+                .values(
+                    status="failed",
+                    error_code="database_unavailable",
+                    error_message="Database write failed. Import the repository again.",
+                )
+            )
+            session.commit()
+        except SQLAlchemyError:
+            session.rollback()
+        raise
