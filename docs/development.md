@@ -92,3 +92,5 @@ Dependency graphs are Milestone 2. Milestone 1 begins only after the user's next
 ## Dependency compatibility note
 
 ESLint 9.39.5 is intentionally retained: ESLint 10.10.0 fails in the React plugin supplied by the current Next.js configuration (`contextOrFilename.getFilename is not a function`). npm reports ESLint 9 as unsupported. Upgrade when that plugin supports ESLint 10, and remove this documented tooling debt after lint passes on the newer major. Backend tests currently produce upstream Starlette/httpx and AnyIO deprecation warnings; keep them visible and revisit the test-client dependency during upgrades.
+
+The frontend scripts use Next.js's Webpack option. Turbopack's CSS worker could not bind its internal port in this managed environment, including on a retry with elevated permissions. Webpack preserves the requested Next.js/Tailwind stack and avoids that worker constraint; reconsider Turbopack once the environment supports it.
