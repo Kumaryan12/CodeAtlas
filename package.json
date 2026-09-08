@@ -1,8 +1,12 @@
 {
   "name": "codeatlas",
   "private": true,
-  "workspaces": ["apps/web"],
-  "engines": {"node": ">=22"},
+  "workspaces": [
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "npm run dev --workspace=@codeatlas/web",
     "build": "npm run build --workspace=@codeatlas/web",

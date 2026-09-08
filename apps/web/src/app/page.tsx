@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { ApiStatus } from "@/components/api-status";
 
 export default function Workspace() {
   return <div className="app-shell">
     <header className="topbar">
-      <a href="/" className="brand"><span className="brand-mark">⌘</span>CodeAtlas</a>
+      <Link href="/" className="brand"><span className="brand-mark">⌘</span>CodeAtlas</Link>
       <span className="divider">/</span><span className="text-sm text-zinc-400">Personal workspace</span>
       <span className="milestone">MILESTONE 0</span>
     </header>

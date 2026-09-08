@@ -43,8 +43,10 @@ def ready(request: Request) -> ReadyResponse | JSONResponse:
     except SQLAlchemyError:
         # Never log connection exception text, which may include credentials.
         logger.warning("database_unavailable")
-        error = ErrorResponse(error=ErrorDetail(
-            code="database_unavailable", message="Database is unavailable. Try again shortly."
-        ))
+        error = ErrorResponse(
+            error=ErrorDetail(
+                code="database_unavailable", message="Database is unavailable. Try again shortly."
+            )
+        )
         return JSONResponse(status_code=503, content=error.model_dump())
     return ReadyResponse()

@@ -1,25 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+
+type Status = "checking" | "online" | "offline";
+
+async function fetchStatus(signal?: AbortSignal): Promise<Status> {
+  try {
+    const response = await fetch("/api/health", { signal, cache: "no-store" });
+    return response.ok ? "online" : "offline";
+  } catch {
+    return "offline";
+  }
+}
 
 export function ApiStatus() {
-  const [status, setStatus] = useState<"checking" | "online" | "offline">("checking");
-  const check = useCallback(async (signal?: AbortSignal) => {
-    setStatus("checking");
-    try {
-      const response = await fetch("/api/health", { signal, cache: "no-store" });
-      if (!signal?.aborted) setStatus(response.ok ? "online" : "offline");
-    } catch {
-      if (!signal?.aborted) setStatus("offline");
-    }
-  }, []);
+  const [status, setStatus] = useState<Status>("checking");
+
   useEffect(() => {
     const controller = new AbortController();
-    void check(controller.signal);
+    void fetchStatus(controller.signal).then((result) => {
+      if (!controller.signal.aborted) setStatus(result);
+    });
     return () => controller.abort();
-  }, [check]);
+  }, []);
+
+  async function refresh() {
+    setStatus("checking");
+    setStatus(await fetchStatus());
+  }
+
   return <div className="api-status">
     <span role="status"><span className={`dot ${status}`} />API {status}</span>
-    <button onClick={() => void check()} disabled={status === "checking"} aria-label="Recheck API connection">↻</button>
+    <button onClick={() => void refresh()} disabled={status === "checking"} aria-label="Recheck API connection">↻</button>
   </div>;
 }
