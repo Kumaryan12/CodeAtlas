@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 1 — deterministic repository analysis.** No LLM or API key is required. Dependency graphs, repository Q&A, and autonomous engineering are future milestones.
+**Current milestone: 2 — static dependency graphs.** No LLM or API key is required. Repository Q&A and autonomous engineering remain future milestones.
 
 ## What works
 
@@ -11,6 +11,7 @@
 - Python AST and JavaScript/TypeScript Tree-sitter parsing, including JSX/TSX, symbol parameters, parent relationships, and exact line ranges.
 - PostgreSQL snapshot persistence with Alembic migrations, transactional bulk writes, and recorded import failures.
 - Repository selection, searchable file tree, syntax-highlighted code, symbol navigation, file statistics, and parser warnings.
+- React Flow architecture view with resolved imports, dependency inspection, cycle highlighting, filtering, and source navigation.
 - Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
 ## Quick start
@@ -65,6 +66,24 @@ For a production-mode local frontend smoke test: `npm run build && npm start`. A
 
 A snapshot with malformed source is marked `partial`; unaffected files and readable source remain available. A valid repository with no supported source files produces an explicit empty state, not an import error.
 
+## Exploring architecture
+
+Select **Architecture** beside **Code** after choosing a completed snapshot.
+
+- Drag nodes, pan, zoom, use the fit-view control, or navigate with the minimap.
+- An arrow points from the importing file to its dependency. Amber edges belong to a cycle group; dashed edges use inferred Python roots.
+- Select a node to inspect its path, language, symbol count, outgoing imports, incoming dependents, and unresolved imports with reasons and statement lines.
+- Choose **Open source & symbols** to return to the existing code viewer for that file.
+- Filter by path/language or enable **Selected file + direct neighbors**. The canvas displays at most 200 matching files, with an explicit visible/total count. The API returns the full bounded graph.
+
+Old snapshots still work, but their import strings lack statement lines and Python imported names, and they have no captured alias configuration. The graph labels this as legacy coverage. **Reimport a repository for complete Milestone 2 metadata; migrations do not redownload or rewrite existing source.**
+
+The graph resolves Python relative imports and named submodules, inferred package/namespace roots, JS/TS relative and `index` entry files, `.js`-to-TypeScript source candidates, and a strict-JSON subset of `tsconfig.json`/`jsconfig.json` `paths` and `baseUrl`. Config inheritance, project references, JSONC comments, package.json exports, installed packages, dynamic imports, and full compiler/runtime resolution are not implemented. Unsupported configuration produces a visible note. When multiple files could match, the graph reports ambiguity instead of guessing.
+
+External packages and otherwise unresolved bare specifiers are labelled `external_or_unresolved`; the graph does not pretend to distinguish them without environment information. A missing local module means no eligible indexed source matched—it can also refer to a skipped asset. Cycle groups are strongly connected components, not an enumeration of every possible cycle.
+
+Limits: 50,000 import observations plus Python imported names, 50,000 local edges, up to 64 alias configs (128 KiB each / 1 MiB aggregate), 64 alias patterns per config and 16 fallback targets per pattern. Python namespace inference considers at most the last 32 path components. Relative/config paths are normalized within the snapshot and never used for filesystem or network access.
+
 ## Architecture
 
 ```text
@@ -77,7 +96,7 @@ Browser → Next.js workspace / fixed same-origin proxy → FastAPI
                            scan results → transactional PostgreSQL snapshot
 ```
 
-Source is stored once per file. Symbols store names, types, parameters, parent IDs, and line ranges; source snippets can be derived from the file without duplicating class/function bodies. Current import strings are unresolved observations, not a dependency graph.
+Source is stored once per file. Symbols store names, types, parameters, parent IDs, and line ranges; source snippets can be derived from the file without duplicating class/function bodies. Structured imports and captured alias configuration feed a deterministic, on-demand file graph; graph reads do not load source text or invoke parsers. Edges describe static imports, not function calls or runtime execution.
 
 See [development guide](docs/development.md) for architecture trade-offs and interview questions, [source tree](docs/structure.md), and [verification record](docs/verification.md).
 
@@ -109,6 +128,7 @@ The Python lock file pins the tested development environment, including transiti
 | `GET /api/repositories/{id}` | Snapshot metadata, state, statistics, and error |
 | `GET /api/repositories/{id}/files` | Source-file summaries; `limit` defaults to/max 1000; `offset` supported |
 | `GET /api/repositories/{id}/files/{file_id}` | Full source, imports, warnings, and file symbols |
+| `GET /api/repositories/{id}/graph` | File nodes, local import edges with evidence, unresolved observations, cycle groups and coverage notes |
 | `GET /api/repositories/{id}/symbols` | Located symbols; optional `file_id`; `limit` defaults to 200, max 1000; `offset` supported |
 | `GET /api/health` | 200 liveness, no database access |
 | `GET /api/ready` | 200 after `SELECT 1`; sanitized 503 on database failure |
@@ -137,7 +157,7 @@ Repository code is never executed, imported, installed, or tested. Only the trus
 - Public default branches only; no private-repository authentication, arbitrary branch selection, repository history, submodules, or Git LFS content. Unauthenticated GitHub limits apply; moved repositories require their current URL. Commit metadata is bounded to 2 MB and repository metadata to 1 MB.
 - The file tree shows eligible source files, not every repository asset. Symlinks anywhere in an archive cause rejection, even when a legitimate repository uses them.
 - Symbol extraction is basic static analysis. Tree-sitter warnings are parser diagnostics, not proof of invalid code: valid JSX text containing a bare `&` can trigger a warning in the current grammar. Python uses the running interpreter's grammar. JS/TS covers named declarations, assigned functions/arrows/classes, class methods, interfaces and type aliases; anonymous exports, overload semantics, dynamic behavior, and complete call resolution are not modeled.
-- Import strings are Python static imports and JS/TS static import/re-export paths; CommonJS/dynamic import resolution and graph edges are deferred.
+- Import strings are Python static imports and JS/TS static import/re-export paths; CommonJS/dynamic import resolution is deferred; static import edges are supported.
 - Browser visual verification was unavailable in this environment. Unit tests, production builds, and live HTTP checks do not replace visual/hydration/accessibility testing.
 
 ## Checks
@@ -161,8 +181,8 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 
 0. **Foundation — complete:** monorepo, service shells, configuration and health.
 1. **Deterministic analysis — implemented:** safe ingestion, symbols, persistence and explorer.
-2. **Dependency graph — next:** Python/JS/TS import resolution, graph API, React Flow visualization.
-3. **Grounded Q&A:** semantic code indexing, provider abstraction and source citations.
+2. **Dependency graph — implemented:** Python/JS/TS import resolution, graph API, React Flow visualization.
+3. **Grounded Q&A — next:** semantic code indexing, provider abstraction and source citations.
 4. **Retrieval quality:** hybrid search, graph expansion, diagnostics and evaluation.
 5. **Read-only agent:** constrained tools and structured traces.
 6. **Reviewable edits:** isolated workspaces and diffs.

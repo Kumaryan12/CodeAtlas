@@ -1,6 +1,6 @@
 # Development guide
 
-## Milestone 1 architecture
+## Source analysis architecture
 
 The browser uses Next.js's fixed same-origin repository proxy. FastAPI validates the request, creates an `importing` snapshot, resolves the public repository's default branch to a commit, and downloads a bounded archive. A trusted Python subprocess decompresses/scans the archive and invokes Python AST or Tree-sitter. It returns normalized files and symbols as JSON. The parent process stores those results with bulk inserts in a database transaction and marks the snapshot `ready` or `partial`.
 
@@ -54,14 +54,36 @@ The [source tree](structure.md) lists the actual tracked files.
 
 ## Intentional debt and next work
 
-The local application has no authentication, total storage quota, deletion/retention policy, durable queue, crash recovery, cross-process import lock, CI, graph, retrieval, LLM or agent. Imports have bounded network streams and a hard analysis timeout, but the parser process is not an OS sandbox. Native-parser exploitation and memory isolation need stronger boundaries before accepting arbitrary repositories in a hosted multi-user deployment.
+The local application has no authentication, total storage quota, deletion/retention policy, durable queue, crash recovery, cross-process import lock, CI, retrieval, LLM or agent. Imports have bounded network streams and a hard analysis timeout, but the parser process is not an OS sandbox. Native-parser exploitation and memory isolation need stronger boundaries before accepting arbitrary repositories in a hosted multi-user deployment.
 
 Archive scanning is intentionally conservative: reject links and unusual paths, skip generated files using heuristics, and show only supported UTF-8 source files. `.gitignore` semantics, encodings other than UTF-8, CommonJS imports, anonymous exports and overload semantics remain future parser refinements. Tree-sitter can report diagnostics for valid framework syntax; a real self-import exposed its bare-ampersand JSX-text limitation, which remains visible as a partial-index warning rather than being suppressed.
 
 ESLint 9 is retained because the current Next.js React lint plugin failed with ESLint 10; its upstream support warning is known tooling debt. Backend tests still expose upstream Starlette/httpx and AnyIO deprecation warnings. The frontend retains Webpack because Turbopack's CSS worker could not bind its internal port in the original managed environment.
 
-## Proposed Milestone 2
+## Milestone 2: derived dependency graphs
 
-Resolve the static Python/JS/TS import strings already recorded into a repository-scoped file dependency graph. Keep unresolved external imports explicit. Define graph node/edge response schemas and tests for relative imports, package entry points, cycles, aliases and unresolved imports. Add React Flow only when the graph view is implemented; node selection should reuse the existing source/symbol explorer. Do not claim a complete call graph from import edges.
+Migration `0002` adds nullable `repository_files.import_references` and `repositories.resolution_configs` JSON columns. NULL means legacy coverage; new empty lists mean capture ran but found no imports/configuration. Source and existing symbol identities are preserved. No graph tables were added: graphs can be recomputed from immutable, bounded metadata using the current resolver.
 
-Milestone 2 starts only after the user's next instruction.
+The isolated parser now captures import kind, module specifier, imported Python names and statement line. The archive scanner separately reads bounded strict-JSON tsconfig/jsconfig files, storing only supported alias options and diagnostics. Configuration is data: no plugins run, and `extends`/project references are never fetched.
+
+`GET /api/repositories/{id}/graph` selects metadata only, resolves local files, groups duplicate source/target pairs with their import evidence, reports unresolved/ambiguous observations and computes strongly connected components. It rejects unfinished snapshots. It does not reparse untrusted source during a request, access the network or use user paths for disk access.
+
+| Choice | Why | Alternative / trade-off | Interview question |
+| --- | --- | --- | --- |
+| On-demand graph from stored metadata | Avoid duplicated graph state and another migration/table lifecycle | Persisted versioned graphs/caching may help larger workloads; current requests recompute | What makes a graph cache invalid? |
+| Structured import references plus legacy fallback | Preserve imported names and exact evidence without breaking old snapshots | Reparse all old source would require a bounded migration job, not an HTTP read | How do you evolve an analysis schema safely? |
+| Explicit ambiguity and unresolved imports | Avoid inventing edges when aliases, packages or runtime paths are unknown | Compiler/language-server integration is more precise but substantially heavier | How do you express uncertainty in static analysis? |
+| Scoped Python root inference | Support src layouts, monorepos and namespace packages without executing setup code | Installed environment metadata is more authoritative; inferred edges are dashed and labelled | Why can static imports differ from runtime imports? |
+| Narrow configuration subset | Useful TS aliases with bounded data parsing and no code execution | JSONC/inheritance/package exports need further specification and fixtures | Which compiler options materially change resolution? |
+| Iterative strongly connected components | Linear graph traversal without Python recursion-depth failures | Enumerating every cycle can be exponential and is unnecessary for cycle highlighting | Why are SCCs useful in dependency analysis? |
+| Bounded React Flow view | Pan/zoom, inspection, filtering and a 200-file rendering cap | Full unbounded rendering can overwhelm the browser; API results remain available | How do you keep a graph visualization responsive? |
+
+The resolver returns local indexed file edges only. JS/TS extension and index candidates are deliberately conservative if several exist. Python roots inferred from file suffixes must contain the importing file before a unique match is selected; multiple out-of-scope candidates remain ambiguous instead of choosing an unrelated application. Namespace inference does not treat every file's directory as a search root: doing that creates false self-imports for a nested `logging.py` importing standard-library `logging`. Qualified namespace modules are supported; unconfigured bare imports from arbitrary script/test directories may remain unresolved. This is a source graph, not proof of module loader behavior. Static type-only import declarations are included; CommonJS and dynamic imports are not extracted yet.
+
+Graph results may change when resolver logic improves even though snapshot source is immutable. Add resolver versioning/cache keys if graphs become persisted evaluation artifacts. No LLM, call graph or sandbox execution was introduced.
+
+## Proposed Milestone 3
+
+Add grounded repository Q&A with code-symbol retrieval, a swappable embedding/LLM provider boundary, and source citations. Start with a small retrieval evaluation fixture and known supporting symbols; introduce embedding persistence and migrations only as needed. Keep model configuration in environment variables, and expose missing-configuration errors. Do not send whole repositories to a model or add write/execution tools.
+
+Milestone 3 begins only after the user's next instruction.

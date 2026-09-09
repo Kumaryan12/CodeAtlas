@@ -1,5 +1,48 @@
 # Verification record
 
+## Milestone 2 — 2026-09-09
+
+| Check | Result |
+| --- | --- |
+| Backend pytest | 92 passed; two existing upstream deprecation warnings |
+| Ruff lint and formatting | Passed |
+| Frontend node:test | 10 passed |
+| Frontend lint and TypeScript | Passed |
+| Next.js production build | Passed with React Flow and its stylesheet |
+| PostgreSQL migration `0002` | Applied successfully; Alembic schema comparison reports no pending operations |
+| Real GitHub import through production proxy | CodeAtlas at `a1dc141`, 63 eligible source files, structured import references and alias config persisted |
+| Fresh snapshot graph through Next.js | 63 nodes, 88 local import edges, 143 unresolved observations, 0 cycle groups; no legacy files |
+| Alias evidence | `typescript_paths` edges present with statement lines from captured tsconfig |
+| Existing CodeAtlas snapshot | 53 nodes and 55 edges; legacy coverage warning present; source unchanged |
+| Existing namespace-package snapshot | 57 nodes and 44 edges after scoped namespace resolution; legacy metadata remains readable |
+| Graph-to-source API navigation | Edge target IDs retrieve the corresponding persisted source and symbols |
+| Graph queries | Regression test proves source text is not selected |
+
+The API exposes only local indexed-file edges. The 143 unresolved observations include standard-library and third-party imports, missing indexed targets and unsupported resolver cases; this is not a count of application errors.
+
+### Coverage added
+
+- Python absolute, relative, parent-relative, named submodule, regular-package, src-layout and namespace-package imports.
+- JS/TS relative files, directory index files, re-exports, TypeScript extension candidates, path-alias precedence/fallback, nearest configuration and base URL.
+- Ambiguous modules, unresolved packages, path escapes, unsupported configuration and config scan limits.
+- Deduplicated edges with import evidence, isolated files, self-cycles, SCC groups and a 2,000-node cycle without recursion.
+- Legacy imports, snapshot scoping, failed-snapshot rejection, and a persisted API fixture combining Python cycles and TypeScript alias edges.
+- Frontend layout determinism, cycle layout, direct-neighborhood filtering, language/path filtering and a 200-node cap with no dangling edges.
+
+### Findings and fixes
+
+Live testing of an existing namespace-package snapshot revealed that relying on `__init__.py` and conventional src roots missed `backend/app` layouts. Added bounded qualified-namespace inference. Inspecting its cycle output then caught an overly broad bare-module root: a nested `logging.py` importing standard-library `logging` was incorrectly treated as a self-import. Removed per-file-directory inference and added a targeted regression. The final live graph has no such false cycle. Inferred roots remain explicitly labelled; this is not full runtime import resolution.
+
+Migration `0002` preserves old snapshots rather than parsing or downloading during migration. Tests run the real migration upgrade/downgrade/schema comparison, and live PostgreSQL retained both previous source snapshots and their new legacy graph views.
+
+### Remaining verification limits
+
+Browser discovery again returned no connected browser. React Flow pointer/keyboard interactions, visual spacing, fit-view behavior, mobile layout and accessibility have not been exercised in a browser. The graph data, layout/filter logic, production build and live proxy/source navigation were tested. Use the Architecture walkthrough in the README for manual visual verification.
+
+No browser performance benchmark or hosted multi-user load test was run. Config JSONC/inheritance, package exports, arbitrary Python execution environments, CommonJS/dynamic imports and call graphs remain outside this milestone.
+
+---
+
 ## Milestone 1 — 2026-09-09
 
 | Check | Result |

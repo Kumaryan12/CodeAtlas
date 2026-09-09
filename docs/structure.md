@@ -18,6 +18,11 @@ CodeAtlas/
 │   │   │   │   ├── database.py
 │   │   │   │   ├── errors.py
 │   │   │   │   └── logging.py
+│   │   │   ├── dependencies/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── config.py
+│   │   │   │   ├── graph.py
+│   │   │   │   └── resolver.py
 │   │   │   ├── ingestion/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── archive.py
@@ -34,6 +39,7 @@ CodeAtlas/
 │   │   │   │   └── types.py
 │   │   │   ├── schemas/
 │   │   │   │   ├── __init__.py
+│   │   │   │   ├── graph.py
 │   │   │   │   └── repository.py
 │   │   │   ├── services/
 │   │   │   │   ├── __init__.py
@@ -42,7 +48,8 @@ CodeAtlas/
 │   │   │   └── main.py
 │   │   ├── migrations/
 │   │   │   ├── versions/
-│   │   │   │   └── 0001_repository_analysis.py
+│   │   │   │   ├── 0001_repository_analysis.py
+│   │   │   │   └── 0002_import_references.py
 │   │   │   ├── env.py
 │   │   │   └── script.py.mako
 │   │   ├── tests/
@@ -52,6 +59,7 @@ CodeAtlas/
 │   │   │   │       ├── client.ts
 │   │   │   │       └── view.jsx
 │   │   │   ├── test_archive.py
+│   │   │   ├── test_dependencies.py
 │   │   │   ├── test_github.py
 │   │   │   ├── test_health.py
 │   │   │   ├── test_parsers.py
@@ -74,16 +82,19 @@ CodeAtlas/
 │       │   ├── components/
 │       │   │   ├── api-status.tsx
 │       │   │   ├── code-viewer.tsx
+│       │   │   ├── dependency-graph.tsx
 │       │   │   ├── file-tree.tsx
 │       │   │   ├── repository-explorer.tsx
 │       │   │   └── workspace.tsx
 │       │   └── lib/
 │       │       ├── file-tree.ts
+│       │       ├── graph.ts
 │       │       ├── highlight.ts
 │       │       ├── proxy-policy.ts
 │       │       └── repositories.ts
 │       ├── tests/
-│       │   └── explorer.test.ts
+│       │   ├── explorer.test.ts
+│       │   └── graph.test.ts
 │       ├── eslint.config.mjs
 │       ├── next-env.d.ts
 │       ├── next.config.ts
