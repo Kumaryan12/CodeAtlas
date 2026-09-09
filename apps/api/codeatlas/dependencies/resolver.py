@@ -32,7 +32,9 @@ class ImportResolver:
             roots = {""}
             # Namespace packages need not contain __init__.py. Index bounded suffix roots;
             # resolution only chooses roots containing the importer, avoiding unrelated apps.
-            for index in range(max(0, len(path.parts) - 32), len(path.parts)):
+            # Do not infer each file's own directory as a sys.path root: a nested
+            # logging.py importing stdlib logging would otherwise create a false self-cycle.
+            for index in range(max(0, len(path.parts) - 32), len(path.parts) - 1):
                 roots.add("/".join(path.parts[:index]))
             directory = path.parent
             package_found = False

@@ -252,3 +252,10 @@ def test_namespace_roots_without_init_files_and_unrelated_shadow_module():
     )
     assert pairs(graph) == {("backend/app/routes.py", "backend/app/service.py")}
     assert graph.unresolved[0].specifier == "json"
+
+
+def test_nested_stdlib_named_module_does_not_infer_a_false_self_cycle():
+    graph = build_graph("repo", [file("backend/app/core/logging.py", "import logging")], [])
+    assert not graph.edges
+    assert not graph.cycles
+    assert graph.unresolved[0].specifier == "logging"
