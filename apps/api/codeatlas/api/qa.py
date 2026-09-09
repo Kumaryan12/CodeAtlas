@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Request
 from codeatlas.ai.provider import AIProvider, get_provider
 from codeatlas.api.repositories import Database, get_repository
 from codeatlas.core.errors import DomainError
-from codeatlas.schemas.qa import AskRequest, AskResponse, IndexStatus
-from codeatlas.services.qa import ask, build_index, index_status
+from codeatlas.schemas.qa import AskRequest, AskResponse, IndexStatus, RetrievalResponse
+from codeatlas.services.qa import ask, build_index, index_status, retrieve_context
 
 router = APIRouter(prefix="/repositories", tags=["questions"])
 
@@ -58,6 +58,37 @@ def question(
     if not request.app.state.ai_lock.acquire(blocking=False):
         raise DomainError("ai_busy", "Another AI operation is running. Try again shortly.", 409)
     try:
-        return ask(session, repository, payload.question, request.app.state.settings, provider)
+        return ask(
+            session,
+            repository,
+            payload.question,
+            request.app.state.settings,
+            provider,
+            payload.strategy,
+        )
+    finally:
+        request.app.state.ai_lock.release()
+
+
+@router.post("/{repository_id}/retrieve", response_model=RetrievalResponse)
+def retrieve_preview(
+    repository_id: UUID,
+    payload: AskRequest,
+    request: Request,
+    session: Database,
+    provider: Provider,
+):
+    repository = ready_repository(session, repository_id)
+    if not request.app.state.ai_lock.acquire(blocking=False):
+        raise DomainError("ai_busy", "Another AI operation is running. Try again shortly.", 409)
+    try:
+        return retrieve_context(
+            session,
+            repository,
+            payload.question,
+            request.app.state.settings,
+            provider,
+            payload.strategy,
+        )
     finally:
         request.app.state.ai_lock.release()

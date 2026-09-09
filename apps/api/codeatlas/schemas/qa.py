@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    strategy: Literal["semantic", "hybrid"] = "hybrid"
     question: str = Field(min_length=1, max_length=1500)
 
     @field_validator("question")
@@ -37,7 +38,29 @@ class Citation(BaseModel):
     source: str
 
 
+class RetrievalHit(Citation):
+    chunk_id: str
+    semantic_score: float | None
+    keyword_score: float
+    symbol_score: float
+    fusion_score: float
+    reason: Literal["semantic", "hybrid", "dependency"]
+    via_file_id: str | None
+    via_file_path: str | None
+
+
+class RetrievalResponse(BaseModel):
+    repository_id: str
+    strategy: Literal["semantic", "hybrid"]
+    version: str
+    candidate_count: int
+    duration_ms: int
+    hits: list[RetrievalHit]
+    notes: list[str]
+
+
 class AskResponse(ModelAnswer):
+    retrieval: RetrievalResponse
     repository_id: str
     commit_sha: str | None
     citations: list[Citation]

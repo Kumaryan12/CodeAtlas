@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session, load_only
+from sqlalchemy.orm import Session
 
 from codeatlas.ai.provider import AIProvider
 from codeatlas.core.config import Settings
@@ -17,8 +17,10 @@ from codeatlas.models.repository import (
     SemanticIndex,
 )
 from codeatlas.retrieval.chunks import CHUNK_VERSION, MAX_CHUNKS, MAX_INDEX_BYTES, Chunk, chunk_file
-from codeatlas.retrieval.vectors import normalize, rank
-from codeatlas.schemas.qa import AskResponse, Citation, IndexStatus
+from codeatlas.retrieval.hybrid import RETRIEVAL_VERSION, retrieve
+from codeatlas.retrieval.vectors import normalize
+from codeatlas.schemas.qa import AskResponse, Citation, IndexStatus, RetrievalHit, RetrievalResponse
+from codeatlas.services.dependency_graph import snapshot_graph
 
 logger = logging.getLogger("codeatlas.qa")
 
@@ -132,13 +134,14 @@ def build_index(
     return index_status(session, repository, settings)
 
 
-def ask(
+def retrieve_context(
     session: Session,
     repository: Repository,
     question: str,
     settings: Settings,
     provider: AIProvider,
-) -> AskResponse:
+    strategy: str = "hybrid",
+) -> RetrievalResponse:
     start = time.monotonic()
     index = session.get(SemanticIndex, repository.id)
     if index is None or index.fingerprint != fingerprint(settings):
@@ -154,32 +157,75 @@ def ask(
         )
     query = normalize(embedded[0], index.dimensions)
     rows = list(
-        session.scalars(
-            select(EmbeddingChunk)
-            .options(load_only(EmbeddingChunk.id, EmbeddingChunk.vector, raiseload=True))
-            .where(EmbeddingChunk.repository_id == repository.id)
-        )
+        session.scalars(select(EmbeddingChunk).where(EmbeddingChunk.repository_id == repository.id))
     )
-    ids = rank(query, [(row.id, row.vector) for row in rows])
-    selected = {
-        row.id: row
-        for row in session.scalars(
-            select(EmbeddingChunk)
-            .where(EmbeddingChunk.repository_id == repository.id, EmbeddingChunk.id.in_(ids))
-            .execution_options(populate_existing=True)
+    chunks = [
+        Chunk(**{key: getattr(row, key) for key in Chunk.__dataclass_fields__}) for row in rows
+    ]
+    edges = []
+    notes = ["Ranking scores are not confidence estimates. Verify claims against source."]
+    if strategy == "hybrid":
+        graph = snapshot_graph(session, repository)
+        edges = [(edge.source, edge.target) for edge in graph.edges]
+        if graph.legacy_files:
+            notes.append(
+                "Legacy import metadata limits dependency expansion; reimport for full coverage."
+            )
+        if graph.unresolved:
+            notes.append(
+                f"{len(graph.unresolved)} unresolved imports were excluded from expansion."
+            )
+        notes.append(
+            "Expansion uses direct imports/importers of the top two seed excerpts; "
+            "at most two additional files."
         )
-    }
-    citations = [
-        Citation(
+    ranked = retrieve(
+        question, chunks, query, {row.id: row.vector for row in rows}, edges, strategy=strategy
+    )
+    paths = {chunk.file_id: chunk.path for chunk in chunks}
+    hits = [
+        RetrievalHit(
             id=f"S{i + 1}",
-            file_id=selected[key].file_id,
-            file_path=selected[key].path,
-            symbol=selected[key].symbol,
-            start_line=selected[key].start_line,
-            end_line=selected[key].end_line,
-            source=selected[key].source,
+            chunk_id=item.chunk.id,
+            file_id=item.chunk.file_id,
+            file_path=item.chunk.path,
+            symbol=item.chunk.symbol,
+            start_line=item.chunk.start_line,
+            end_line=item.chunk.end_line,
+            source=item.chunk.source,
+            semantic_score=item.semantic_score,
+            keyword_score=item.keyword_score,
+            symbol_score=item.symbol_score,
+            fusion_score=item.fusion_score,
+            reason=item.reason,
+            via_file_id=item.via_file_id,
+            via_file_path=paths.get(item.via_file_id),
         )
-        for i, key in enumerate(ids)
+        for i, item in enumerate(ranked)
+    ]
+    return RetrievalResponse(
+        repository_id=repository.id,
+        strategy=strategy,
+        version=RETRIEVAL_VERSION,
+        candidate_count=len(chunks),
+        hits=hits,
+        notes=notes,
+        duration_ms=round((time.monotonic() - start) * 1000),
+    )
+
+
+def ask(
+    session: Session,
+    repository: Repository,
+    question: str,
+    settings: Settings,
+    provider: AIProvider,
+    strategy: str = "hybrid",
+) -> AskResponse:
+    start = time.monotonic()
+    retrieval = retrieve_context(session, repository, question, settings, provider, strategy)
+    citations = [
+        Citation(**hit.model_dump(include=set(Citation.model_fields))) for hit in retrieval.hits
     ]
     if not citations:
         raise DomainError(
@@ -204,6 +250,7 @@ def ask(
         extra={"repository_id": repository.id, "duration_ms": duration, "status": answer.status},
     )
     return AskResponse(
+        retrieval=retrieval,
         **answer.model_dump(),
         repository_id=repository.id,
         commit_sha=repository.commit_sha,
