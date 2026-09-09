@@ -10,7 +10,10 @@ from codeatlas.main import create_app
 
 @pytest.fixture
 def client():
-    with patch("codeatlas.main.create_database_engine") as engine_factory:
+    with (
+        patch("codeatlas.main.create_database_engine") as engine_factory,
+        patch("codeatlas.main.recover_interrupted"),
+    ):
         with TestClient(create_app(Settings(_env_file=None))) as test_client:
             yield test_client
         engine_factory.return_value.dispose.assert_called_once()

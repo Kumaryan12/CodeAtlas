@@ -96,3 +96,24 @@ class EmbeddingChunk(Base):
     end_line: Mapped[int] = mapped_column(Integer)
     source: Mapped[str] = mapped_column(Text)
     vector: Mapped[list] = mapped_column(JSON)
+
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    repository_id: Mapped[str] = mapped_column(ForeignKey("repositories.id", ondelete="CASCADE"))
+    task: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    model: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    plan: Mapped[list] = mapped_column(JSON, default=list)
+    steps: Mapped[list] = mapped_column(JSON, default=list)
+    result: Mapped[dict | None] = mapped_column(JSON)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (Index("ix_agent_runs_repository_created", "repository_id", "created_at"),)

@@ -7,6 +7,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from codeatlas.api.agent import recover_interrupted
+from codeatlas.api.agent import router as agent_router
 from codeatlas.api.health import router as health_router
 from codeatlas.api.qa import router as qa_router
 from codeatlas.api.repositories import router as repository_router
@@ -27,16 +29,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.database = create_database_engine(app.state.settings)
         app.state.import_lock = threading.Lock()
         app.state.ai_lock = threading.Lock()
+        recover_interrupted(app.state.database)
         try:
             yield
         finally:
             app.state.database.dispose()
 
-    app = FastAPI(title="CodeAtlas API", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="CodeAtlas API", version="0.5.0", lifespan=lifespan)
     app.add_middleware(ImportBodyLimit)
     app.include_router(health_router, prefix="/api")
     app.include_router(repository_router, prefix="/api")
     app.include_router(qa_router, prefix="/api")
+    app.include_router(agent_router, prefix="/api")
 
     @app.exception_handler(DomainError)
     async def domain_error(request: Request, exc: DomainError):

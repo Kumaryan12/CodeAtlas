@@ -10,7 +10,7 @@ class EventFormatter(logging.Formatter):
             "level": record.levelname.lower(),
             "event": record.getMessage(),
         }
-        for key in ("repository_id", "duration_ms", "status", "code"):
+        for key in ("repository_id", "run_id", "duration_ms", "status", "code"):
             if hasattr(record, key):
                 payload[key] = getattr(record, key)
         return json.dumps(payload)
