@@ -30,6 +30,10 @@ class ImportResolver:
                 continue
             path = PurePosixPath(file.path)
             roots = {""}
+            # Namespace packages need not contain __init__.py. Index bounded suffix roots;
+            # resolution only chooses roots containing the importer, avoiding unrelated apps.
+            for index in range(max(0, len(path.parts) - 32), len(path.parts)):
+                roots.add("/".join(path.parts[:index]))
             directory = path.parent
             package_found = False
             while str(directory / "__init__.py") in python_paths:
@@ -61,6 +65,8 @@ class ImportResolver:
                 for path, root in local
                 if (len(root.split("/")) if root else 0) == depth
             ]
+        elif len({path for path, _ in entries}) == 1:
+            return []
         return sorted({path for path, _ in entries})
 
     def python(self, importer: GraphFile, ref: ImportReference) -> tuple[list[str], str, list[str]]:

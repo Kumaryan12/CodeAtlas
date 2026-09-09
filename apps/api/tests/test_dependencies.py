@@ -238,3 +238,17 @@ def test_named_python_import_reference_keeps_actual_module_not_alias():
     refs = parse_python("from . import service as svc\nimport os.path as path").import_references
     assert refs[0] == ImportReference(specifier=".", kind="python_from", names=["service"], line=1)
     assert refs[1].specifier == "os.path"
+
+
+def test_namespace_roots_without_init_files_and_unrelated_shadow_module():
+    graph = build_graph(
+        "repo",
+        [
+            file("backend/app/routes.py", "from app.service import login\nimport json"),
+            file("backend/app/service.py", "def login(): pass"),
+            file("other/tools/json.py"),
+        ],
+        [],
+    )
+    assert pairs(graph) == {("backend/app/routes.py", "backend/app/service.py")}
+    assert graph.unresolved[0].specifier == "json"
