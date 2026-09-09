@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { citationLabel, citationPage } from "../src/lib/qa.ts";
+import { citationLabel, citationPage, formatRetrievalScore } from "../src/lib/qa.ts";
 import { allowedRepositoryPath } from "../src/lib/proxy-policy.ts";
 
 const id = "d8ad7614-0a30-4b7d-b499-1e1785be78bd";
@@ -23,4 +23,19 @@ test("proxy allows only scoped Q&A operations and existing read routes", () => {
   assert.equal(allowedRepositoryPath(["..", "ask"], "POST"), false);
   assert.equal(allowedRepositoryPath([id, "index", "extra"], "POST"), false);
   assert.equal(allowedRepositoryPath([id, "index"], "DELETE"), false);
+});
+
+test("retrieval preview has an explicit POST-only proxy route", () => {
+  assert.ok(allowedRepositoryPath([id, "retrieve"], "POST"));
+  assert.equal(allowedRepositoryPath([id, "retrieve"], "GET"), false);
+  assert.equal(allowedRepositoryPath([id, "retrieve", "extra"], "POST"), false);
+});
+
+
+test("retrieval scores retain scale and never display fake confidence percentages", () => {
+  assert.equal(formatRetrievalScore(.85), "0.850");
+  assert.equal(formatRetrievalScore(-.2), "-0.200");
+  assert.equal(formatRetrievalScore(.03251, 4), "0.0325");
+  assert.equal(formatRetrievalScore(null), "—");
+  assert.equal(formatRetrievalScore(Number.NaN), "—");
 });

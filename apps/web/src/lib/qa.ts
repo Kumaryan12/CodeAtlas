@@ -19,7 +19,31 @@ export type Citation = {
   source: string;
 };
 
+export type Retrieval = {
+  repository_id: string;
+  strategy: "semantic" | "hybrid";
+  version: string;
+  candidate_count: number;
+  duration_ms: number;
+  notes: string[];
+  hits: (Citation & {
+    chunk_id: string;
+    semantic_score: number | null;
+    keyword_score: number;
+    symbol_score: number;
+    fusion_score: number;
+    reason: "semantic" | "hybrid" | "dependency";
+    via_file_id: string | null;
+    via_file_path: string | null;
+  })[];
+};
+
+export function formatRetrievalScore(score: number | null, digits = 3): string {
+  return score === null || !Number.isFinite(score) ? "—" : score.toFixed(digits);
+}
+
 export type Answer = {
+  retrieval: Retrieval;
   repository_id: string;
   commit_sha: string | null;
   status: "answered" | "insufficient_context";

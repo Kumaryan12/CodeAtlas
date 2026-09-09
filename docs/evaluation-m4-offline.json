@@ -1,0 +1,305 @@
+{
+  "retrieval_version": "hybrid-v1",
+  "mode": "offline_lexical_only",
+  "embedding_model": null,
+  "cases": 12,
+  "chunks": 14,
+  "dependency_edges": 2,
+  "duration_ms": 5,
+  "comparisons": {
+    "lexical": {
+      "recall@1": 0.611111111111111,
+      "mrr@1": 0.75,
+      "recall@3": 0.8333333333333334,
+      "mrr@3": 0.7916666666666666,
+      "recall@6": 0.9166666666666666,
+      "mrr@6": 0.8125,
+      "results": [
+        {
+          "question": "Where are incorrect sign-in credentials rejected?",
+          "expected": [
+            "auth.py:login"
+          ],
+          "retrieved": [
+            "routes.py:sign_in",
+            "routes.py:sign_out",
+            "auth.py:verify_password",
+            "auth.py:login"
+          ]
+        },
+        {
+          "question": "How is a password checked against its stored hash?",
+          "expected": [
+            "auth.py:verify_password"
+          ],
+          "retrieved": [
+            "auth.py:verify_password",
+            "auth.py:login",
+            "routes.py:sign_in"
+          ]
+        },
+        {
+          "question": "What prevents ordering more items than are available?",
+          "expected": [
+            "catalog.py:reserve_stock"
+          ],
+          "retrieved": []
+        },
+        {
+          "question": "Where is a percentage discount validated and applied?",
+          "expected": [
+            "catalog.py:apply_discount"
+          ],
+          "retrieved": [
+            "orders.py:checkout",
+            "catalog.py:apply_discount"
+          ]
+        },
+        {
+          "question": "Which code retries a task after a connection failure?",
+          "expected": [
+            "jobs.py:retry_job"
+          ],
+          "retrieved": [
+            "jobs.py:retry_job"
+          ]
+        },
+        {
+          "question": "How are old expired sessions removed?",
+          "expected": [
+            "jobs.py:delete_expired_sessions"
+          ],
+          "retrieved": [
+            "jobs.py:delete_expired_sessions",
+            "auth.py:logout",
+            "routes.py:sign_out"
+          ]
+        },
+        {
+          "question": "Explain verify_password()",
+          "expected": [
+            "auth.py:verify_password"
+          ],
+          "retrieved": [
+            "auth.py:verify_password",
+            "auth.py:login",
+            "routes.py:sign_in"
+          ]
+        },
+        {
+          "question": "Where does reserve_stock reject Insufficient stock?",
+          "expected": [
+            "catalog.py:reserve_stock"
+          ],
+          "retrieved": [
+            "catalog.py:reserve_stock",
+            "orders.py:checkout"
+          ]
+        },
+        {
+          "question": "How does jobs.py retry_job handle ConnectionError?",
+          "expected": [
+            "jobs.py:retry_job"
+          ],
+          "retrieved": [
+            "jobs.py:retry_job",
+            "jobs.py:delete_expired_sessions",
+            "jobs.py:export_report",
+            "catalog.py:apply_discount",
+            "catalog.py:reserve_stock",
+            "auth.py:login"
+          ]
+        },
+        {
+          "question": "Trace routes.py sign_in through the login credential check.",
+          "expected": [
+            "routes.py:sign_in",
+            "auth.py:login"
+          ],
+          "retrieved": [
+            "routes.py:sign_in",
+            "auth.py:login",
+            "routes.py:None",
+            "routes.py:sign_out",
+            "orders.py:None",
+            "auth.py:logout"
+          ]
+        },
+        {
+          "question": "How does checkout reserve_stock before applying the discount?",
+          "expected": [
+            "orders.py:checkout",
+            "catalog.py:reserve_stock",
+            "catalog.py:apply_discount"
+          ],
+          "retrieved": [
+            "catalog.py:reserve_stock",
+            "orders.py:checkout",
+            "catalog.py:apply_discount",
+            "jobs.py:delete_expired_sessions"
+          ]
+        },
+        {
+          "question": "How does sign_out call logout to delete a session?",
+          "expected": [
+            "routes.py:sign_out",
+            "auth.py:logout"
+          ],
+          "retrieved": [
+            "auth.py:logout",
+            "routes.py:sign_out",
+            "jobs.py:delete_expired_sessions",
+            "routes.py:sign_in"
+          ]
+        }
+      ]
+    },
+    "lexical_graph": {
+      "recall@1": 0.611111111111111,
+      "mrr@1": 0.75,
+      "recall@3": 0.8333333333333334,
+      "mrr@3": 0.7916666666666666,
+      "recall@6": 0.9166666666666666,
+      "mrr@6": 0.8125,
+      "results": [
+        {
+          "question": "Where are incorrect sign-in credentials rejected?",
+          "expected": [
+            "auth.py:login"
+          ],
+          "retrieved": [
+            "routes.py:sign_in",
+            "routes.py:sign_out",
+            "auth.py:verify_password",
+            "auth.py:login"
+          ]
+        },
+        {
+          "question": "How is a password checked against its stored hash?",
+          "expected": [
+            "auth.py:verify_password"
+          ],
+          "retrieved": [
+            "auth.py:verify_password",
+            "auth.py:login",
+            "routes.py:sign_in"
+          ]
+        },
+        {
+          "question": "What prevents ordering more items than are available?",
+          "expected": [
+            "catalog.py:reserve_stock"
+          ],
+          "retrieved": []
+        },
+        {
+          "question": "Where is a percentage discount validated and applied?",
+          "expected": [
+            "catalog.py:apply_discount"
+          ],
+          "retrieved": [
+            "orders.py:checkout",
+            "catalog.py:apply_discount"
+          ]
+        },
+        {
+          "question": "Which code retries a task after a connection failure?",
+          "expected": [
+            "jobs.py:retry_job"
+          ],
+          "retrieved": [
+            "jobs.py:retry_job"
+          ]
+        },
+        {
+          "question": "How are old expired sessions removed?",
+          "expected": [
+            "jobs.py:delete_expired_sessions"
+          ],
+          "retrieved": [
+            "jobs.py:delete_expired_sessions",
+            "auth.py:logout",
+            "routes.py:sign_out"
+          ]
+        },
+        {
+          "question": "Explain verify_password()",
+          "expected": [
+            "auth.py:verify_password"
+          ],
+          "retrieved": [
+            "auth.py:verify_password",
+            "auth.py:login",
+            "routes.py:sign_in"
+          ]
+        },
+        {
+          "question": "Where does reserve_stock reject Insufficient stock?",
+          "expected": [
+            "catalog.py:reserve_stock"
+          ],
+          "retrieved": [
+            "catalog.py:reserve_stock",
+            "orders.py:checkout"
+          ]
+        },
+        {
+          "question": "How does jobs.py retry_job handle ConnectionError?",
+          "expected": [
+            "jobs.py:retry_job"
+          ],
+          "retrieved": [
+            "jobs.py:retry_job",
+            "jobs.py:delete_expired_sessions",
+            "jobs.py:export_report",
+            "catalog.py:apply_discount",
+            "catalog.py:reserve_stock",
+            "auth.py:login"
+          ]
+        },
+        {
+          "question": "Trace routes.py sign_in through the login credential check.",
+          "expected": [
+            "routes.py:sign_in",
+            "auth.py:login"
+          ],
+          "retrieved": [
+            "routes.py:sign_in",
+            "auth.py:login",
+            "routes.py:None",
+            "routes.py:sign_out",
+            "orders.py:None",
+            "auth.py:logout"
+          ]
+        },
+        {
+          "question": "How does checkout reserve_stock before applying the discount?",
+          "expected": [
+            "orders.py:checkout",
+            "catalog.py:reserve_stock",
+            "catalog.py:apply_discount"
+          ],
+          "retrieved": [
+            "catalog.py:reserve_stock",
+            "orders.py:checkout",
+            "catalog.py:apply_discount",
+            "jobs.py:delete_expired_sessions"
+          ]
+        },
+        {
+          "question": "How does sign_out call logout to delete a session?",
+          "expected": [
+            "routes.py:sign_out",
+            "auth.py:logout"
+          ],
+          "retrieved": [
+            "auth.py:logout",
+            "routes.py:sign_out",
+            "jobs.py:delete_expired_sessions",
+            "routes.py:sign_in"
+          ]
+        }
+      ]
+    }
+  }
+}

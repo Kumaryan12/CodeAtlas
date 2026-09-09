@@ -165,16 +165,21 @@ def retrieve_context(
     edges = []
     notes = ["Ranking scores are not confidence estimates. Verify claims against source."]
     if strategy == "hybrid":
-        graph = snapshot_graph(session, repository)
-        edges = [(edge.source, edge.target) for edge in graph.edges]
-        if graph.legacy_files:
-            notes.append(
-                "Legacy import metadata limits dependency expansion; reimport for full coverage."
-            )
-        if graph.unresolved:
-            notes.append(
-                f"{len(graph.unresolved)} unresolved imports were excluded from expansion."
-            )
+        try:
+            graph = snapshot_graph(session, repository)
+        except DomainError as exc:
+            if exc.code != "graph_too_large":
+                raise
+            notes.append("Dependency graph exceeds its limit; expansion was skipped.")
+        else:
+            edges = [(edge.source, edge.target) for edge in graph.edges]
+            if graph.legacy_files:
+                notes.append("Legacy import metadata limits expansion; reimport for full coverage.")
+            if graph.unresolved:
+                notes.append(
+                    f"{len(graph.unresolved)} unresolved imports were excluded from expansion."
+                )
+            notes.extend(graph.notes[:8])
         notes.append(
             "Expansion uses direct imports/importers of the top two seed excerpts; "
             "at most two additional files."

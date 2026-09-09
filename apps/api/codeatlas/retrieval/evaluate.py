@@ -9,10 +9,12 @@ from uuid import NAMESPACE_URL, uuid5
 from codeatlas.ai.provider import get_provider
 from codeatlas.core.config import PROJECT_ROOT, Settings
 from codeatlas.core.errors import DomainError
+from codeatlas.dependencies.graph import build_graph
 from codeatlas.models.repository import CodeSymbol, RepositoryFile
 from codeatlas.parsers.python import parse_python
 from codeatlas.retrieval.chunks import chunk_file
-from codeatlas.retrieval.vectors import rank
+from codeatlas.retrieval.hybrid import RETRIEVAL_VERSION, retrieve
+from codeatlas.schemas.graph import GraphFile
 
 
 def metrics(retrieved: list[list[str]], expected: list[list[str]], k: int) -> dict[str, float]:
@@ -47,46 +49,101 @@ def fixture_chunks(directory: Path):
     return chunks
 
 
+def fixture_edges(directory: Path):
+    files = []
+    for path in sorted(directory.glob("*.py")):
+        parsed = parse_python(path.read_text())
+        files.append(
+            GraphFile(
+                id=str(uuid5(NAMESPACE_URL, path.name)),
+                path=path.name,
+                language="python",
+                imports=parsed.imports,
+                import_references=parsed.import_references,
+            )
+        )
+    graph = build_graph("evaluation", files, [])
+    return [(edge.source, edge.target) for edge in graph.edges]
+
+
+def compare(cases, chunks, queries, vectors, edges):
+    modes = (
+        ["semantic", "hybrid", "hybrid_graph"]
+        if queries is not None
+        else ["lexical", "lexical_graph"]
+    )
+    expected = [case["expected"] for case in cases]
+    report = {}
+    for mode in modes:
+        rankings = []
+        for i, case in enumerate(cases):
+            results = retrieve(
+                case["question"],
+                chunks,
+                queries[i] if queries is not None else None,
+                vectors,
+                edges if mode.endswith("_graph") else [],
+                strategy="semantic" if mode == "semantic" else "hybrid",
+            )
+            rankings.append([f"{item.chunk.path}:{item.chunk.symbol}" for item in results])
+        report[mode] = {
+            **metrics(rankings, expected, 1),
+            **metrics(rankings, expected, 3),
+            **metrics(rankings, expected, 6),
+            "results": [
+                {**case, "retrieved": ranking}
+                for case, ranking in zip(cases, rankings, strict=True)
+            ],
+        }
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
         "--live",
         action="store_true",
-        help="Send evaluation fixture excerpts and questions for embeddings",
+        help="Compare semantic, hybrid, and graph retrieval using real embeddings",
+    )
+    mode.add_argument(
+        "--offline",
+        action="store_true",
+        help="Evaluate lexical retrieval with and without graph expansion; no provider calls",
     )
     args = parser.parse_args()
-    if not args.live:
-        parser.error(
-            "Pass --live to run the real-provider evaluation. "
-            "No synthetic semantic scores are reported."
-        )
     settings = Settings()
     directory = PROJECT_ROOT / "apps/api/evaluation"
     chunks = fixture_chunks(directory / "fixture")
+    edges = fixture_edges(directory / "fixture")
     cases = json.loads((directory / "questions.json").read_text())
-    provider = get_provider(settings)
     started = time.monotonic()
+    queries = None
+    vectors = {}
     try:
-        vectors = provider.embed([chunk.embedding_text() for chunk in chunks])
-        queries = provider.embed([case["question"] for case in cases])
-        candidates = [(chunk.id, vector) for chunk, vector in zip(chunks, vectors, strict=True)]
-        labels = {chunk.id: f"{chunk.path}:{chunk.symbol}" for chunk in chunks}
-        rankings = [[labels[key] for key in rank(query, candidates, 3)] for query in queries]
+        if args.live:
+            provider = get_provider(settings)
+            embedded = provider.embed([chunk.embedding_text() for chunk in chunks])
+            queries = provider.embed([case["question"] for case in cases])
+            if len(queries) != len(cases):
+                raise DomainError(
+                    "invalid_embedding", "Incomplete evaluation query embeddings.", 502
+                )
+            vectors = {chunk.id: vector for chunk, vector in zip(chunks, embedded, strict=True)}
+        report = compare(cases, chunks, queries, vectors, edges)
     except DomainError as exc:
         parser.exit(2, f"{exc.code}: {exc.message}\n")
-    expected = [case["expected"] for case in cases]
     print(
         json.dumps(
             {
-                "embedding_model": settings.embedding_model,
+                "retrieval_version": RETRIEVAL_VERSION,
+                "mode": "live" if args.live else "offline_lexical_only",
+                "embedding_model": settings.embedding_model if args.live else None,
                 "cases": len(cases),
-                **metrics(rankings, expected, 1),
-                **metrics(rankings, expected, 3),
+                "chunks": len(chunks),
+                "dependency_edges": len(edges),
                 "duration_ms": round((time.monotonic() - started) * 1000),
-                "results": [
-                    {**case, "retrieved": ranking}
-                    for case, ranking in zip(cases, rankings, strict=True)
-                ],
+                "comparisons": report,
             },
             indent=2,
         )

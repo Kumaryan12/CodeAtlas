@@ -89,8 +89,8 @@ def retrieve(
         for c in chunks
     ]
     keyword = bm25(question, chunks) if strategy == "hybrid" else [0.0] * len(chunks)
-    identifiers = set(re.findall(r"\w+", question.casefold()))
-    paths = set(re.findall(r"[\w./-]+", question.casefold()))
+    identifiers = set(re.findall(r"[#\w$]+", question.casefold()))
+    paths = {path.rstrip(".") for path in re.findall(r"[\w./$#-]+", question.casefold())}
     symbol = [
         float(
             2 * bool(c.symbol and c.symbol.casefold() in identifiers)
@@ -125,8 +125,9 @@ def retrieve(
     if budget:
         seeds = list(dict.fromkeys(chunks[i].file_id for i in selected[:2]))
         neighbors: dict[str, str] = {}
+        unique_edges = sorted(set(edges))
         for seed in seeds:
-            for source, target in sorted(set(edges)):
+            for source, target in unique_edges:
                 if source == seed and target != seed:
                     neighbors.setdefault(target, seed)
                 if target == seed and source != seed:

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { RetrievalDiagnostics } from "@/components/retrieval-diagnostics";
 import { request } from "@/lib/repositories";
-import { citationLabel, type Answer, type Citation, type IndexStatus } from "@/lib/qa";
+import { citationLabel, type Answer, type Citation, type IndexStatus, type Retrieval } from "@/lib/qa";
 
 type Turn = { question: string; answer: Answer };
 
@@ -11,9 +12,11 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
   onOpenSource: (citation: Citation) => void;
 }) {
   const [index, setIndex] = useState<IndexStatus | null>(null);
+  const [strategy, setStrategy] = useState<"semantic" | "hybrid">("hybrid");
+  const [preview, setPreview] = useState<{ question: string; retrieval: Retrieval } | null>(null);
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [busy, setBusy] = useState<"index" | "ask" | null>(null);
+  const [busy, setBusy] = useState<"index" | "ask" | "retrieve" | null>(null);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const operation = useRef<AbortController | null>(null);
@@ -50,7 +53,7 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
     try {
       const answer = await request<Answer>(`/${repositoryId}/ask`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: submitted }), signal: controller.signal,
+        body: JSON.stringify({ question: submitted, strategy }), signal: controller.signal,
       });
       if (!controller.signal.aborted) {
         setTurns((previous) => [...previous.slice(-9), { question: submitted, answer }]);
@@ -58,6 +61,23 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
       }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Question failed.");
+    } finally { if (!controller.signal.aborted) setBusy(null); }
+  }
+
+  async function previewContext() {
+    if (!question.trim() || busy || index?.status !== "ready") return;
+    const submitted = question.trim();
+    const controller = new AbortController();
+    operation.current = controller;
+    setBusy("retrieve"); setError("");
+    try {
+      const retrieval = await request<Retrieval>(`/${repositoryId}/retrieve`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: submitted, strategy }), signal: controller.signal,
+      });
+      if (!controller.signal.aborted) setPreview({ question: submitted, retrieval });
+    } catch (reason) {
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Retrieval failed.");
     } finally { if (!controller.signal.aborted) setBusy(null); }
   }
 
@@ -90,15 +110,24 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
           {turn.answer.citations.map((citation) => <div key={citation.id}><button onClick={() => onOpenSource(citation)}>{citationLabel(citation)}</button>
             {citation.symbol && <span className="muted"> · {citation.symbol}</span>}<pre><code>{citation.source}</code></pre></div>)}
         </details>}
+        <RetrievalDiagnostics retrieval={turn.answer.retrieval} onOpenSource={onOpenSource} />
         <p className="ask-meta">{turn.answer.model} · {(turn.answer.duration_ms / 1000).toFixed(1)} s · snapshot {turn.answer.commit_sha?.slice(0, 7) ?? "unknown"}</p>
       </article>)}
-      {busy && <p role="status" className="muted">{busy === "index" ? "Embedding source excerpts. This may take up to two minutes." : "Retrieving relevant code and composing a cited answer…"}</p>}
+      {busy && <p role="status" className="muted">{busy === "index" ? "Embedding source excerpts. This may take up to two minutes." : busy === "retrieve" ? "Retrieving context without generating an answer…" : "Retrieving relevant code and composing a cited answer…"}</p>}
     </div>
+    {preview && <section className="retrieval-preview" aria-label="Retrieval preview"><h3>Context preview: {preview.question}</h3>
+      <RetrievalDiagnostics retrieval={preview.retrieval} onOpenSource={onOpenSource} />
+      <button className="secondary-button" onClick={() => setPreview(null)}>Dismiss preview</button></section>}
     <form className="ask-form" onSubmit={(event) => void ask(event)}>
+      <div className="retrieval-controls"><label htmlFor="retrieval-strategy">Retrieval mode</label>
+        <select id="retrieval-strategy" value={strategy} disabled={!!busy} onChange={(event) => setStrategy(event.target.value as "semantic" | "hybrid")}>
+          <option value="hybrid">Hybrid + dependencies</option><option value="semantic">Semantic baseline</option>
+        </select></div>
       <label htmlFor="repository-question">Your question</label>
       <textarea id="repository-question" rows={3} maxLength={1500} value={question} onChange={(event) => setQuestion(event.target.value)}
         disabled={!!busy || !index?.configured || index.status !== "ready"} placeholder="How does this repository…" />
-      <div><p className="muted">Each question is independent. Only retrieved excerpts accompany it. Answers can be wrong; inspect the source.</p>
+      <div><p className="muted">Each question is independent. Preview uses a query embedding without generating an answer. Answers can be wrong; inspect the source.</p>
+        <button type="button" className="secondary-button" onClick={() => void previewContext()} disabled={!!busy || !question.trim() || !index?.configured || index.status !== "ready"}>Preview context</button>
         <button className="primary-button" disabled={!!busy || !question.trim() || !index?.configured || index.status !== "ready"}>Ask</button></div>
     </form>
     <p className="ask-meta">The last 10 answers remain in this view until you switch snapshots or reload.</p>

@@ -177,3 +177,70 @@ def test_real_resolved_imports_expand_only_within_snapshot(api):
     assert any(
         hit["file_path"] == "auth.py" and hit["via_file_path"] == "route.py" for hit in expanded
     )
+
+
+def test_graph_limit_preserves_hybrid_retrieval_with_an_explicit_note(
+    api, fake_download, monkeypatch
+):
+    from codeatlas.core.errors import DomainError
+
+    prefix = imported(api)
+    provider = FixtureProvider()
+    api.app.dependency_overrides[provider_dependency] = lambda: provider
+    api.post(prefix + "/index", json={})
+
+    def oversized(*args):
+        raise DomainError("graph_too_large", "Graph exceeds limit", 413)
+
+    monkeypatch.setattr("codeatlas.services.qa.snapshot_graph", oversized)
+    response = api.post(prefix + "/retrieve", json={"question": "login"})
+    assert response.status_code == 200
+    assert any("expansion was skipped" in note for note in response.json()["notes"])
+    assert all(hit["reason"] == "hybrid" for hit in response.json()["hits"])
+
+
+def test_retrieval_diagnostics_cannot_leak_another_index(api, fake_download):
+    provider = FixtureProvider()
+    api.app.dependency_overrides[provider_dependency] = lambda: provider
+    first, second = imported(api), imported(api)
+    for prefix in [first, second]:
+        api.post(prefix + "/index", json={})
+    first_hits = api.post(first + "/retrieve", json={"question": "login"}).json()["hits"]
+    second_hits = api.post(second + "/retrieve", json={"question": "login"}).json()["hits"]
+    assert {hit["file_id"] for hit in first_hits}.isdisjoint(
+        {hit["file_id"] for hit in second_hits}
+    )
+    assert {hit["chunk_id"] for hit in first_hits}.isdisjoint(
+        {hit["chunk_id"] for hit in second_hits}
+    )
+
+
+def test_evaluation_compares_same_queries_and_vectors_across_modes():
+    from codeatlas.retrieval.evaluate import compare
+
+    docs = [chunk("login"), chunk("login_extra")]
+    cases = [{"question": "login", "expected": ["login.py:login"]}]
+    result = compare(cases, docs, [[1, 0]], {"login": [0, 1], "login_extra": [1, 0]}, [])
+    assert result["semantic"]["recall@1"] == 0
+    assert result["hybrid"]["recall@1"] == result["hybrid_graph"]["recall@1"] == 1
+    offline = compare(cases, docs, None, {}, [])
+    assert set(offline) == {"lexical", "lexical_graph"}
+
+
+def test_context_budget_and_stability_at_index_limit():
+    docs = [chunk(f"item{i:04d}", file=f"file{i % 100}.py") for i in range(2000)]
+    vectors = {c.id: [1, 0] for c in docs}
+    edges = [(f"file{i}.py", f"file{i + 1}.py") for i in range(99)]
+    first = retrieve("item1500", docs, [1, 0], vectors, edges)
+    reverse = retrieve("item1500", docs[::-1], [1, 0], vectors, edges[::-1])
+    assert len(first) == 6
+    assert first[0].chunk.id == "item1500"
+    assert first == reverse
+
+
+def test_javascript_identifier_and_sentence_final_path_matches():
+    docs = [chunk("$login", file="src/auth.ts"), chunk("other")]
+    vectors = {"$login": [0, 1], "other": [1, 0]}
+    result = retrieve("Explain $login in src/auth.ts.", docs, [1, 0], vectors, [])
+    assert result[0].chunk.symbol == "$login"
+    assert result[0].symbol_score == 3
