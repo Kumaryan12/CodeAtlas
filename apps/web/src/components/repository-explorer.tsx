@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchFiles, request, type FileDetail, type Repository, type RepositoryFile } from "@/lib/repositories";
 import { FileTree } from "@/components/file-tree";
 import { DependencyGraphView } from "@/components/dependency-graph";
+import { RepositoryAgent } from "@/components/repository-agent";
 import { RepositoryAsk } from "@/components/repository-ask";
 import type { Citation } from "@/lib/qa";
 import { CodeViewer } from "@/components/code-viewer";
@@ -24,8 +25,9 @@ function FileView({ repositoryId, fileId, citation }: { repositoryId: string; fi
 }
 
 export function RepositoryExplorer({ repository }: { repository: Repository }) {
-  const [view, setView] = useState<"code" | "architecture" | "ask">("code");
+  const [view, setView] = useState<"code" | "architecture" | "ask" | "agent">("code");
   const [citation, setCitation] = useState<Citation | null>(null);
+  const [agentOpened, setAgentOpened] = useState(false);
   const [askOpened, setAskOpened] = useState(false);
   const [files, setFiles] = useState<RepositoryFile[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -58,9 +60,11 @@ export function RepositoryExplorer({ repository }: { repository: Repository }) {
       <button aria-pressed={view === "code"} onClick={() => setView("code")}>Code</button>
       <button aria-pressed={view === "architecture"} onClick={() => setView("architecture")}>Architecture</button>
       <button aria-pressed={view === "ask"} onClick={() => { setAskOpened(true); setView("ask"); }}>Ask</button>
+      <button aria-pressed={view === "agent"} onClick={() => { setAgentOpened(true); setView("agent"); }}>Agent</button>
     </div>
+    {agentOpened && <div hidden={view !== "agent"}><RepositoryAgent repositoryId={repository.id} onOpenSource={(source) => { setCitation(source); setActiveId(source.file_id); setView("code"); }} /></div>}
     {askOpened && <div hidden={view !== "ask"}><RepositoryAsk repositoryId={repository.id} onOpenSource={(source) => { setCitation(source); setActiveId(source.file_id); setView("code"); }} /></div>}
-    {view === "ask" ? null : view === "architecture" ? <DependencyGraphView repositoryId={repository.id} activeId={activeId} onSelect={setActiveId}
+    {view === "ask" || view === "agent" ? null : view === "architecture" ? <DependencyGraphView repositoryId={repository.id} activeId={activeId} onSelect={setActiveId}
       onOpenCode={(id) => { setCitation(null); setActiveId(id); setView("code"); }} /> : !files.length ? <div className="empty-state"><h2>No supported source files</h2><p className="muted">This snapshot contains no eligible Python, JavaScript, or TypeScript files. Review scan details above.</p></div>
       : <div className="explorer-grid"><FileTree files={files} activeId={activeId} onSelect={(id) => { setCitation(null); setActiveId(id); }} />
         {activeId && <FileView key={activeId} repositoryId={repository.id} fileId={activeId} citation={citation?.file_id === activeId ? citation : null} />}

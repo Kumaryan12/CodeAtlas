@@ -184,3 +184,29 @@ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .retrieval-controls select:focus-visible { outline: 2px solid var(--accent); }
 .ask-form .secondary-button { margin: 0; white-space: nowrap; }
 @media (max-width: 700px) { .ask-form > div { flex-wrap: wrap; } }
+
+.agent-panel { padding: 28px; }
+.agent-boundary { font-size: 12px; color: var(--muted); line-height: 1.8; margin: 18px 0 0; }
+.agent-form { margin-top: 24px; }
+.agent-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; margin: 30px 0; }
+.agent-history { border-right: 1px solid var(--line); padding-right: 20px; }
+.agent-history > button { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: #15161b; color: #d3d8e4; border-radius: 7px; padding: 12px; margin-bottom: 10px; }
+.agent-history strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; }
+.agent-history span { display: block; color: var(--muted); font-size: 10px; line-height: 1.6; margin-top: 8px; }
+.agent-detail { min-width: 0; }
+.agent-run-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.agent-run-heading h3 { margin: 0; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.agent-plan { padding: 18px; margin: 22px 0; background: #15161b; border: 1px solid var(--line); border-radius: 8px; }
+.agent-plan ol { list-style: decimal; padding-left: 20px; font-size: 13px; line-height: 1.9; margin: 0; }
+.agent-plan .eyebrow { margin-bottom: 10px; }
+.agent-trace ol { list-style: none; padding: 0; }
+.agent-trace li { border-left: 2px solid #414963; padding: 0 0 24px 16px; margin-left: 5px; }
+.agent-trace li > div { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.agent-trace strong { font-size: 12px; font-weight: 500; }
+.agent-trace p { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.trace-kind { font: 9px monospace; padding: 4px 7px; border-radius: 4px; background: #252b3d; color: #b9c7f8; }
+.trace-kind.read { background: #20352e; color: #a7d0bb; }
+.trace-status { margin-left: auto; font: 10px monospace; color: var(--muted); }
+.agent-result { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); }
+@media (max-width: 950px) { .agent-layout { grid-template-columns: 1fr; } .agent-history { border-right: 0; padding-right: 0; max-height: 220px; overflow: auto; } }
+@media (max-width: 700px) { .agent-panel { padding: 18px 12px; } }
