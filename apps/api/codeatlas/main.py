@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from codeatlas.api.health import router as health_router
+from codeatlas.api.qa import router as qa_router
 from codeatlas.api.repositories import router as repository_router
 from codeatlas.core.body_limit import ImportBodyLimit
 from codeatlas.core.config import Settings
@@ -25,6 +26,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.settings = settings or Settings()
         app.state.database = create_database_engine(app.state.settings)
         app.state.import_lock = threading.Lock()
+        app.state.ai_lock = threading.Lock()
         try:
             yield
         finally:
@@ -34,6 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(ImportBodyLimit)
     app.include_router(health_router, prefix="/api")
     app.include_router(repository_router, prefix="/api")
+    app.include_router(qa_router, prefix="/api")
 
     @app.exception_handler(DomainError)
     async def domain_error(request: Request, exc: DomainError):

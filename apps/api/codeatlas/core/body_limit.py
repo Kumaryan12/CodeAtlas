@@ -12,7 +12,7 @@ class ImportBodyLimit:
         if (
             scope["type"] != "http"
             or scope["method"] != "POST"
-            or scope["path"].rstrip("/") != "/api/repositories"
+            or not scope["path"].startswith("/api/repositories")
         ):
             await self.app(scope, receive, send)
             return
@@ -28,7 +28,7 @@ class ImportBodyLimit:
                     content={
                         "error": {
                             "code": "request_too_large",
-                            "message": "Import request exceeds 4 KB.",
+                            "message": "Request exceeds 4 KB.",
                         }
                     },
                 )(scope, receive, send)

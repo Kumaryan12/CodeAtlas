@@ -65,3 +65,34 @@ class CodeSymbol(Base):
     parameters: Mapped[list] = mapped_column(JSON, default=list)
 
     __table_args__ = (Index("ix_code_symbols_file_id", "file_id"),)
+
+
+class SemanticIndex(Base):
+    __tablename__ = "semantic_indexes"
+
+    repository_id: Mapped[str] = mapped_column(
+        ForeignKey("repositories.id", ondelete="CASCADE"), primary_key=True
+    )
+    fingerprint: Mapped[str] = mapped_column(String(200))
+    dimensions: Mapped[int] = mapped_column(Integer)
+    chunk_count: Mapped[int] = mapped_column(Integer)
+    skipped_long_lines: Mapped[int] = mapped_column(Integer)
+    indexed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EmbeddingChunk(Base):
+    __tablename__ = "embedding_chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    repository_id: Mapped[str] = mapped_column(
+        ForeignKey("semantic_indexes.repository_id", ondelete="CASCADE"), index=True
+    )
+    file_id: Mapped[str] = mapped_column(ForeignKey("repository_files.id", ondelete="CASCADE"))
+    path: Mapped[str] = mapped_column(String(1000))
+    language: Mapped[str] = mapped_column(String(20))
+    symbol: Mapped[str | None] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(20))
+    start_line: Mapped[int] = mapped_column(Integer)
+    end_line: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(Text)
+    vector: Mapped[list] = mapped_column(JSON)
