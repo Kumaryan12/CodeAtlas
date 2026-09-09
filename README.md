@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 4 — hybrid retrieval and diagnostics.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. Autonomous engineering remains a future milestone.
+**Current milestone: 5 — read-only investigation agent.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. A bounded agent can investigate snapshots; editing and execution remain future milestones.
 
 ## What works
 
@@ -14,6 +14,7 @@
 - React Flow architecture view with resolved imports, dependency inspection, cycle highlighting, filtering, and source navigation.
 - Symbol-first semantic indexing, snapshot-scoped hybrid retrieval, an AI provider interface, and an Ask view with clickable source citations.
 - Semantic/keyword/exact-symbol rank fusion, bounded import expansion, context previews, and per-excerpt retrieval diagnostics.
+- Read-only investigations with model-selected steps, a fixed tool registry, persisted run history, live traces, and source-grounded findings.
 - Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
 ## Quick start
@@ -208,6 +209,34 @@ The live comparison reports semantic-only, hybrid without expansion, and hybrid 
 
 The adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). Responses use `store: false`; source text and questions are treated as untrusted data, and no execution tools are available to the model.
 
+## Read-only investigations
+
+Open a completed snapshot → **Agent**, enter an investigation task, and select **Start investigation**. The agent chooses a public plan, reads repository evidence, and returns cited findings or reports insufficient context. Its trace distinguishes remote model decisions from snapshot reads, including query-embedding calls. Click a final citation to inspect the original source.
+
+Investigations use the existing `CODEATLAS_OPENAI_API_KEY` and `CODEATLAS_ANSWER_MODEL` settings. Semantic indexing is optional: `search_code` needs an index, while the other read tools work without one. The UI shows the latest 20 runs; the API supports paginated history. Runs continue after leaving the view, and the UI polls progress every two seconds while a run is active.
+
+| Tool | Boundary |
+| --- | --- |
+| `list_files` | Up to 20 snapshot files per page; optional path prefix |
+| `find_symbol` | Exact, case-sensitive name; up to 20 scoped symbol locations |
+| `search_code` | Existing hybrid retrieval; at most two source excerpts; one query-embedding call |
+| `read_file` | Snapshot-scoped file UUID; at most 120 lines and 6,000 UTF-8 source bytes |
+| `inspect_dependencies` | Resolved snapshot imports/importers; at most 10 neighbors in each direction |
+
+The application dispatches validated structured decisions into this fixed registry. There are no editing, shell, package-installation, arbitrary URL, or GitHub mutation tools. Agent activity writes only its own run/trace metadata; repository snapshots remain unchanged. Run tasks, public plans, summaries, and final claim/reference metadata are stored locally. Tool-output bodies and duplicate source excerpts are not persisted in run records; cited source is read from the snapshot when viewing a result.
+
+| Route under `/api/repositories/{id}` | Behavior |
+| --- | --- |
+| `POST /agent-runs` with `{"task":"Trace authentication and identify validation gaps"}` | Returns 202 and a run ID; starts one background investigation |
+| `GET /agent-runs?limit=20&offset=0` | Paginated run summaries |
+| `GET /agent-runs/{run_id}` | Plan, trace, status, and cited result |
+
+A run permits **six model decisions and five read attempts**, including failed attempts. Search can add up to five query-embedding calls. Repeated identical reads are rejected. Source evidence is capped at 12 excerpts / 24 KB; serialized model context at 48 KB. No new decision or read starts after the checked 90-second budget; an in-flight provider call can extend elapsed time. A run may finish as completed, failed, limited, or interrupted. A completed run can still report insufficient context.
+
+Run the API with **one worker**. There is one AI operation at a time across Q&A, indexing, and investigations. Background execution is in-process, without a durable queue, automatic retries, cancellation, or resumability. On startup, unfinished runs are marked interrupted rather than silently rerun. If the database is unavailable during startup recovery, restart the API once the database is back. Model usage may incur charges; token/cost accounting is not yet recorded.
+
+The model is instructed to treat task/source strings as untrusted data. Registry and argument validation enforce the read boundary even if the model disregards those instructions. Citation checks reject invented evidence IDs but cannot prove answer faithfulness. Live agent quality remains unverified until a provider key is configured; see [verification](docs/verification.md).
+
 ## Checks
 
 ```sh
@@ -232,7 +261,7 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 2. **Dependency graph — implemented:** Python/JS/TS import resolution, graph API, React Flow visualization.
 3. **Grounded Q&A — implemented:** semantic indexing, provider boundary, cited answers and an initial evaluation harness. Live model quality remains unmeasured in this environment.
 4. **Hybrid retrieval — implemented:** keyword/symbol fusion, bounded graph expansion, diagnostics and comparison harness. Live quality measurement remains pending.
-5. **Read-only agent — next:** constrained tools and structured traces.
-6. **Reviewable edits:** isolated workspaces and diffs.
+5. **Read-only agent — implemented:** bounded investigation loop, scoped read tools, persisted traces and cited findings.
+6. **Reviewable edits — next:** isolated workspaces and diffs.
 7. **Sandboxed tests:** bounded execution and retries.
 8. **Approved pull requests:** explicit human approval before remote changes.

@@ -174,3 +174,24 @@ This record describes local verification, not a production-readiness certificati
 4. Click a source link and verify the selected line range. Return to Ask; the preview remains labeled with its original question/mode.
 5. Select **Ask** and compare the answer's citations with its own retrieved context. Preview uses only a query embedding; Ask makes a fresh retrieval and an answer-model call.
 6. Run `python -m codeatlas.retrieval.evaluate --live` using the API virtual environment and inspect all three modes on the same questions. Record regressions as well as improvements before tuning weights or adding agent behavior.
+
+## Milestone 5 — read-only investigations (2026-09-09)
+
+- **146 backend tests passed**, including the existing suites and new agent behavior: model-selected reads, persisted traces/citations, rejected write/shell/URL actions, invented citations, failed/invalid/foreign-file reads, repeated-call and step limits, time/context/evidence/source budgets, sanitized provider faults, missing configuration, busy rejection, request limits, restart recovery, exact symbol lookup, semantic search, and dependency inspection.
+- **16 frontend tests passed**. ESLint, TypeScript, the production Webpack build, Ruff lint/format, and `git diff --check` passed. Tests cover scoped run routes, rejection of mutation routes, terminal polling states, and counting failed read attempts.
+- PostgreSQL was initially stopped after the environment resumed. Docker Desktop/PostgreSQL were restarted. Migration `0004` applied, and `alembic check` reported no pending model changes. SQLite tests also exercise full migration upgrade/downgrade and metadata comparison.
+- A scripted provider behind a temporary real HTTP server verified asynchronous behavior: POST returned **202 before the model completed**, GET exposed a running trace step, a second run returned 409, and the completed run contained five trace entries and an exact cited source range.
+- The same smoke fixture used real PostgreSQL to verify run persistence, final references without duplicated source, unchanged repository source, and cascade cleanup. Only the uniquely identified temporary fixture was removed; user snapshots were preserved. Startup recovery was disabled in that isolated test app so it could not alter runs owned by the production API.
+- Production frontend proxy checks passed for run history/detail, same-origin missing-key handling, and foreign-origin rejection. The local API and frontend run on ports 8000 and 3000.
+- **No live LLM investigation-quality result is claimed.** The server has no configured OpenAI key. Scripted-provider and mocked HTTP tests verify mechanics only.
+- Browser runtime reconnection succeeded but returned an empty browser list. Visual/hydration/accessibility checks remain outstanding. Two upstream Starlette/httpx and AnyIO deprecation warnings remain. New mock-engine warnings were resolved by isolating startup recovery in health-only tests; recovery itself is tested against migrated databases.
+
+### Manual verification
+
+1. Run `alembic -c apps/api/alembic.ini upgrade head` using the API virtual environment, configure the existing server key, and restart the API with one worker.
+2. Open a completed snapshot → **Agent**, and start a narrow investigation. Confirm that a plan and actual model/read steps appear as the run progresses.
+3. Inspect exact symbol/file reads without a semantic index. Build an index in Ask and try a broader task that uses search; confirm that search appears as a remote embedding read.
+4. Follow a finding's citation into source, return to Agent, and verify that the saved run remains accessible after reloading.
+5. Ask for an operation outside read scope. The product has no mutation/execution tool; it should either report its limitation or fail a rejected decision, never alter source.
+6. Stop/restart the API during a run and confirm that the run and pending step are marked interrupted/failed, with no automatic rerun. In-flight provider calls cannot currently be cancelled from the UI.
+7. Review real-provider findings against expected evidence before making quality claims or enabling editing in a later milestone.

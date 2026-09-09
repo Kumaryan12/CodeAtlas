@@ -16,6 +16,8 @@ and a one-sentence action summary, not private reasoning. Choose exactly one act
 Tools: list_files(prefix string, offset integer): at most 20 paths with file IDs.
 Use offset to paginate.
 search_code(query string): hybrid search, at most two excerpts; requires a semantic index.
+find_symbol(query string): exact case-sensitive symbol name, at most 20 locations.
+No embedding needed.
 read_file(file_id UUID, start_line integer, end_line integer): at most 120 lines / 6000 bytes.
 inspect_dependencies(file_id UUID): bounded resolved imports/importers, not proof of runtime calls.
 Pass only that tool's arguments; set unused argument fields to null. Tool errors are observations:
@@ -44,7 +46,14 @@ DECISION_SCHEMA = {
         "summary": {"type": "string"},
         "action": {
             "type": "string",
-            "enum": ["list_files", "search_code", "read_file", "inspect_dependencies", "finish"],
+            "enum": [
+                "list_files",
+                "search_code",
+                "find_symbol",
+                "read_file",
+                "inspect_dependencies",
+                "finish",
+            ],
         },
         "arguments": {
             "type": "object",

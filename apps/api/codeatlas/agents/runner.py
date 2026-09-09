@@ -70,6 +70,8 @@ def tool_summary(action, result):
         return f"Retrieved {len(result['matches'])} excerpts: " + ", ".join(
             row["id"] for row in result["matches"]
         )
+    if action == "find_symbol":
+        return f"Found {result['total']} symbols; returned {len(result['symbols'])} locations."
     if action == "read_file":
         row = result["excerpt"]
         return f"Read {row['file_path'][:200]}:{row['start_line']}–{row['end_line']} ({row['id']})."
@@ -176,7 +178,7 @@ def run_loop(session, run, settings, provider):
                 step_started,
                 tool_summary(decision.action, result),
             )
-        observations.append({"action": decision.action, "result": result})
+        observations.append({"action": decision.action, "arguments": arguments, "result": result})
     finish_run(session, run, "limited", "step_limit", "Investigation reached its decision limit.")
 
 

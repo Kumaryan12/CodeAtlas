@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, load_only
 
 from codeatlas.core.errors import DomainError
-from codeatlas.models.repository import RepositoryFile
+from codeatlas.models.repository import CodeSymbol, RepositoryFile
 from codeatlas.schemas.qa import Citation
 from codeatlas.services.dependency_graph import snapshot_graph
 from codeatlas.services.qa import retrieve_context
@@ -87,6 +87,7 @@ class ReadTools:
         registry = {
             "list_files": (ListFiles, self.list_files),
             "search_code": (SearchCode, self.search_code),
+            "find_symbol": (SearchCode, self.find_symbol),
             "read_file": (ReadFile, self.read_file),
             "inspect_dependencies": (FileId, self.inspect_dependencies),
         }
@@ -96,7 +97,7 @@ class ReadTools:
             )
         schema, handler = registry[action]
         try:
-            parsed = schema.model_validate({k: v for k, v in arguments.items() if v is not None})
+            parsed = schema.model_validate(arguments)
         except (ValueError, ValidationError) as exc:
             raise DomainError(
                 "invalid_tool_arguments", "Invalid arguments for the selected read tool.", 422
@@ -135,6 +136,38 @@ class ReadTools:
             citation = self.remember(Citation(**hit.model_dump(include=set(Citation.model_fields))))
             matches.append(citation.model_dump(exclude={"source"}))
         return {"matches": matches, "notes": result.notes, "limit": 2}
+
+    def find_symbol(self, args: SearchCode):
+        conditions = [
+            RepositoryFile.repository_id == self.repository.id,
+            CodeSymbol.name == args.query,
+        ]
+        rows = self.session.execute(
+            select(CodeSymbol, RepositoryFile)
+            .join(RepositoryFile)
+            .options(load_only(RepositoryFile.id, RepositoryFile.path, raiseload=True))
+            .where(*conditions)
+            .order_by(RepositoryFile.path, CodeSymbol.start_line, CodeSymbol.id)
+            .limit(20)
+        )
+        total = self.session.scalar(
+            select(func.count()).select_from(CodeSymbol).join(RepositoryFile).where(*conditions)
+        )
+        return {
+            "symbols": [
+                {
+                    "file_id": file.id,
+                    "path": file.path[:200],
+                    "name": symbol.name[:200],
+                    "kind": symbol.kind,
+                    "start_line": symbol.start_line,
+                    "end_line": symbol.end_line,
+                }
+                for symbol, file in rows
+            ],
+            "total": total,
+            "limit": 20,
+        }
 
     def read_file(self, args: ReadFile):
         file = self.file(args.file_id)

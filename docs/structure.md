@@ -7,11 +7,17 @@ CodeAtlas/
 ├── apps/
 │   ├── api/
 │   │   ├── codeatlas/
+│   │   │   ├── agents/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── runner.py
+│   │   │   │   └── tools.py
 │   │   │   ├── ai/
 │   │   │   │   ├── __init__.py
+│   │   │   │   ├── investigator.py
 │   │   │   │   └── provider.py
 │   │   │   ├── api/
 │   │   │   │   ├── __init__.py
+│   │   │   │   ├── agent.py
 │   │   │   │   ├── health.py
 │   │   │   │   ├── qa.py
 │   │   │   │   └── repositories.py
@@ -49,6 +55,7 @@ CodeAtlas/
 │   │   │   │   └── vectors.py
 │   │   │   ├── schemas/
 │   │   │   │   ├── __init__.py
+│   │   │   │   ├── agent.py
 │   │   │   │   ├── graph.py
 │   │   │   │   ├── qa.py
 │   │   │   │   └── repository.py
@@ -71,7 +78,8 @@ CodeAtlas/
 │   │   │   ├── versions/
 │   │   │   │   ├── 0001_repository_analysis.py
 │   │   │   │   ├── 0002_import_references.py
-│   │   │   │   └── 0003_semantic_index.py
+│   │   │   │   ├── 0003_semantic_index.py
+│   │   │   │   └── 0004_agent_runs.py
 │   │   │   ├── env.py
 │   │   │   └── script.py.mako
 │   │   ├── tests/
@@ -81,6 +89,7 @@ CodeAtlas/
 │   │   │   │       ├── client.ts
 │   │   │   │       └── view.jsx
 │   │   │   ├── conftest.py
+│   │   │   ├── test_agent.py
 │   │   │   ├── test_archive.py
 │   │   │   ├── test_dependencies.py
 │   │   │   ├── test_github.py
@@ -109,11 +118,13 @@ CodeAtlas/
 │       │   │   ├── code-viewer.tsx
 │       │   │   ├── dependency-graph.tsx
 │       │   │   ├── file-tree.tsx
+│       │   │   ├── repository-agent.tsx
 │       │   │   ├── repository-ask.tsx
 │       │   │   ├── repository-explorer.tsx
 │       │   │   ├── retrieval-diagnostics.tsx
 │       │   │   └── workspace.tsx
 │       │   └── lib/
+│       │       ├── agent.ts
 │       │       ├── file-tree.ts
 │       │       ├── graph.ts
 │       │       ├── highlight.ts
@@ -121,6 +132,7 @@ CodeAtlas/
 │       │       ├── qa.ts
 │       │       └── repositories.ts
 │       ├── tests/
+│       │   ├── agent.test.ts
 │       │   ├── explorer.test.ts
 │       │   ├── graph.test.ts
 │       │   └── qa.test.ts

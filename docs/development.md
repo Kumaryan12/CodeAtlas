@@ -120,6 +120,29 @@ The evaluation fixture now contains 12 questions, 14 chunks, and two resolved fi
 
 There is no calibrated relevance threshold or evidence-entailment check. Live semantic/answer-quality evaluation is still unavailable without a configured key. Do not infer improved answer quality from successful unit tests or valid citation IDs.
 
-## Proposed Milestone 5
+## Milestone 5: read-only investigations
 
-Add an explicitly read-only investigation agent with bounded tools such as list files, search code, read source, and inspect dependencies, plus a visible execution trace. Configure the provider and run the live retrieval comparison before relying on agent output. Do not add editing, shell execution, or pull-request tools yet. Begin only after the user's next instruction.
+Migration `0004` adds one `agent_runs` table: snapshot ID, submitted task, model, lifecycle state, timestamps, a public plan, bounded trace steps, final claims/reference metadata, and sanitized errors. An index supports snapshot history ordered by creation time. The trace is a small JSON list (at most 11 model/read entries), so a separate step table is unnecessary at this stage. Each step is committed before and after the operation so polling sees real progress.
+
+| Choice | Reason and tradeoff | Interview question |
+| --- | --- | --- |
+| Application-dispatched structured decisions | The model chooses an action after each observation. A provider interface returns a validated decision, and the application owns dispatch; no hosted execution tools are enabled. This avoids a framework dependency while keeping the control loop explicit. | What makes this an agent rather than one-shot RAG? |
+| Fixed read registry and scoped parameters | Only list files, find symbols, hybrid search, bounded file reads, and dependency inspection exist. File access uses UUIDs scoped to the snapshot, never filesystem paths. | Why is a read-only prompt insufficient as a security boundary? |
+| Evidence IDs assigned by the server | Reads/search register exact source ranges as E1, E2, etc. Final implementation claims must cite inspected IDs; file/symbol/dependency metadata alone is not evidence. Semantic entailment still requires evaluation. | How do you reject a plausible-looking invented citation? |
+| Incremental trace persistence | Commits record actual model/read starts, completions, failures, and durations. Public plans and concise action summaries are shown; internal reasoning and raw tool-output bodies are not stored. | How do you diagnose a failed run without logging source and secrets? |
+| One bounded background run | HTTP 202 separates creation from completion; the UI polls progress. The existing AI lock is held until the worker exits. There is no durable queue, cross-process coordination, resumability, or cancellation. | What changes when this becomes a multi-worker service? |
+| Explicit budgets and failure states | Six decisions, five tool attempts, 12 evidence excerpts / 24 KB source, and 48 KB serialized context bound growth. Time is checked before decisions and reads; in-flight calls may finish after 90 seconds. | How do you contain looping behavior and model cost? |
+
+The OpenAI adapter uses [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs) for a decision envelope containing a public plan, action, arguments, and optional final claims. Server Pydantic validation and a static dispatch table remain authoritative. Native hosted shell/tools are not enabled. Other providers can implement `InvestigationProvider.decide` and `embed`; existing Q&A behavior remains independent.
+
+`find_symbol` searches existing parser metadata without embeddings. `search_code` reuses Milestone 4 retrieval but returns at most two evidence excerpts. A missing/stale index becomes a tool error the model can respond to with file/symbol reads. Invalid parameters and repeated calls consume the same attempt budget as successful reads. Invalid model decisions, malformed final results, and invented citations fail the run. Tool faults remain visible observations so the model can choose another allowed read within its budget.
+
+Read tools never write repository tables or execute/import repository source. The controller writes only run metadata. Final run results persist source locations rather than copying source bodies; the API hydrates cited ranges from the immutable snapshot. The user's task is persisted intentionally for run history, and the UI discloses local storage and external model calls. Query arguments and tool-output bodies remain transient. Model summaries can contain user-facing text, so they are rendered as plain text.
+
+Startup recovery marks unfinished runs and pending steps interrupted/failed. It does not rerun them. Missing database/schema availability is tolerated so health endpoints remain usable; recovery requires another API restart if the database was unavailable at startup. Use one worker: startup recovery assumes there is no other live process owning a run. Durable scheduling, distributed coordination, cancellation, and detailed token/cost accounting remain explicit production work.
+
+Scripted-provider tests prove control flow and boundaries, not autonomous investigation quality. Live semantic and agent evaluation still requires a configured key. Before relying on findings, run representative tasks with expected evidence, include misleading-source instructions and negative questions, and assess faithfulness and useful task completion.
+
+## Proposed Milestone 6
+
+Add reviewable code edits inside isolated workspaces, with explicit proposed changes and a diff view. Keep original snapshots untouched. Do not add unrestricted execution or remote pushes to the product. Establish the live read-only baseline before expanding agent authority. Begin only after the user's next instruction.

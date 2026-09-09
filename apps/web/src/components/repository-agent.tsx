@@ -78,7 +78,7 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
   return <section className="agent-panel" aria-label="Read-only investigation agent">
     <div className="ask-heading"><div><p className="eyebrow">INVESTIGATION AGENT</p><h2>Follow the evidence.</h2>
       <p className="muted">The agent chooses a plan, reads source, and reports findings with citations.</p></div><span className="ask-state">Read-only</span></div>
-    <p className="agent-boundary">Allowed: list files, search code, read excerpts, inspect dependencies. Up to 5 read actions and 6 model calls per run.</p>
+    <p className="agent-boundary">Allowed: list files, find symbols, search code, read excerpts, inspect dependencies. Up to 5 read actions and 6 model decisions per run.</p>
     {error && <p className="notice error" role="alert">{error}</p>}
     <button className="secondary-button" disabled={starting} onClick={() => { setError(""); setRevision((value) => value + 1); }}>Refresh runs and configuration</button>
     {index && !index.configured && <p className="notice warning">Set CODEATLAS_OPENAI_API_KEY on the API server and restart it to enable investigations.</p>}
@@ -98,13 +98,13 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
     </aside><div className="agent-detail">
       {!selectedId ? <p className="muted">Start an investigation to inspect its plan and execution trace.</p> : !current ? <p role="status" className="muted">Loading trace…</p> : <>
         <div className="agent-run-heading"><h3>{current.task}</h3><span className="ask-state">{current.status}</span></div>
-        <p className="ask-meta">{current.model} · {counts.model}/6 model calls · {counts.reads}/5 read attempts</p>
+        <p className="ask-meta">{current.model} · {counts.model}/6 model decisions · {counts.reads}/5 read attempts</p>
         {current.error_message && <p className="notice warning" role="status">{current.error_message}</p>}
         {!!current.plan.length && <div className="agent-plan"><p className="eyebrow">PLAN</p><ol>{current.plan.map((step, i) => <li key={i}>{step}</li>)}</ol></div>}
         <div className="agent-trace" aria-live="polite"><p className="eyebrow">EXECUTION TRACE</p>
           {!current.steps.length && <p role="status" className="muted">Waiting for the first model step…</p>}
           <ol>{current.steps.map((step) => <li key={step.number}>
-            <div><span className={`trace-kind ${step.kind}`}>{step.kind === "model" ? "MODEL · REMOTE" : "READ"}</span><strong>{step.action.replaceAll("_", " ")}</strong>
+            <div><span className={`trace-kind ${step.kind}`}>{step.kind === "model" ? "MODEL · REMOTE" : step.action === "search_code" ? "READ · REMOTE EMBEDDING" : "READ"}</span><strong>{step.action.replaceAll("_", " ")}</strong>
               <span className="trace-status">{step.status} {step.status !== "running" && `· ${(step.duration_ms / 1000).toFixed(2)} s`}</span></div>
             {step.summary && <p>{step.summary}</p>}</li>)}</ol></div>
         {current.result && <section className="agent-result"><p className="eyebrow">FINDINGS</p>

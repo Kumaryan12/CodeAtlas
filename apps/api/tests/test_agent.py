@@ -2,6 +2,7 @@ import json
 
 import httpx
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from test_qa import imported, mock_http
 
@@ -10,7 +11,7 @@ from codeatlas.ai.investigator import OpenAIInvestigator
 from codeatlas.api.agent import investigator_dependency, recover_interrupted
 from codeatlas.core.config import Settings
 from codeatlas.core.errors import DomainError
-from codeatlas.models.repository import AgentRun, Repository
+from codeatlas.models.repository import AgentRun, Repository, RepositoryFile
 from codeatlas.schemas.agent import AgentDecision
 
 
@@ -212,8 +213,9 @@ def test_read_registry_rejects_mutations_and_argument_injection(api, fake_downlo
         for action in ["write_file", "shell", "http_get"]:
             with pytest.raises(DomainError, match="registered"):
                 tools.execute(action, {})
-        with pytest.raises(DomainError):
-            tools.execute("list_files", {"command": "rm -rf /"})
+        for command in ["rm -rf /", None]:
+            with pytest.raises(DomainError):
+                tools.execute("list_files", {"command": command})
         with pytest.raises(DomainError):
             tools.execute(
                 "read_file", {"file_id": "../../etc/passwd", "start_line": 1, "end_line": 2}
@@ -241,3 +243,129 @@ def test_provider_decision_wire_format_has_no_hosted_execution_tools(monkeypatch
     mock_http(monkeypatch, handler)
     provider = OpenAIInvestigator(Settings(_env_file=None, openai_api_key="test"))
     assert provider.decide({"task": "inspect"}).action == "finish"
+
+
+def test_search_and_dependency_tools_use_existing_index(api, fake_download):
+    from test_qa import FixtureProvider
+
+    from codeatlas.api.qa import provider_dependency
+
+    prefix = imported(api)
+    api.app.dependency_overrides[provider_dependency] = lambda: FixtureProvider()
+    api.post(prefix + "/index", json={})
+
+    def inspect(state):
+        return decision("inspect_dependencies", {"file_id": state["evidence"][0]["file_id"]})
+
+    provider = ScriptedInvestigator(
+        [
+            decision("search_code", {"query": "login"}),
+            inspect,
+            decision(
+                "finish",
+                answer={
+                    "status": "answered",
+                    "claims": [
+                        {
+                            "text": "The inspected login returns its argument.",
+                            "citation_ids": ["E1"],
+                        }
+                    ],
+                },
+            ),
+        ]
+    )
+    result = start(api, prefix, provider)
+    assert result["status"] == "completed"
+    assert [row["action"] for row in result["steps"] if row["kind"] == "read"] == [
+        "search_code",
+        "inspect_dependencies",
+    ]
+    assert len(provider.states[-1]["evidence"]) <= 2
+
+
+def test_source_and_evidence_budgets_are_enforced(api, fake_download):
+    from codeatlas.schemas.qa import Citation
+
+    prefix = imported(api)
+    with Session(api.app.state.database) as session:
+        repository = session.get(Repository, prefix.rsplit("/", 1)[1])
+        tools = ReadTools(session, repository, api.app.state.settings, None)
+        file = session.scalar(
+            select(RepositoryFile).where(RepositoryFile.repository_id == repository.id)
+        )
+        for i in range(4):
+            tools.remember(
+                Citation(
+                    id="",
+                    file_id=file.id,
+                    file_path=file.path,
+                    symbol=None,
+                    start_line=i + 1,
+                    end_line=i + 1,
+                    source="x" * 6000,
+                )
+            )
+        with pytest.raises(DomainError) as exc:
+            tools.remember(
+                Citation(
+                    id="",
+                    file_id=file.id,
+                    file_path=file.path,
+                    symbol=None,
+                    start_line=5,
+                    end_line=5,
+                    source="more",
+                )
+            )
+        assert exc.value.code == "evidence_limit"
+        file.source = "x" * 6001
+        session.flush()
+        with pytest.raises(DomainError) as exc:
+            tools.execute("read_file", {"file_id": file.id, "start_line": 1, "end_line": 1})
+        assert exc.value.code == "source_line_too_large"
+        with pytest.raises(DomainError):
+            tools.execute("read_file", {"file_id": file.id, "start_line": True, "end_line": 1})
+        session.rollback()
+
+
+def test_interrupted_recovery_finishes_pending_trace_step(api, fake_download):
+    prefix = imported(api)
+    with Session(api.app.state.database) as session:
+        run = AgentRun(
+            repository_id=prefix.rsplit("/", 1)[1],
+            task="Old run",
+            model="fixture",
+            steps=[
+                {
+                    "number": 1,
+                    "kind": "model",
+                    "action": "choose_next_step",
+                    "status": "running",
+                    "started_at": "2026-09-09T00:00:00+00:00",
+                    "duration_ms": 0,
+                    "summary": "",
+                    "error_code": None,
+                }
+            ],
+        )
+        session.add(run)
+        session.commit()
+        run_id = run.id
+    recover_interrupted(api.app.state.database)
+    result = api.get(prefix + "/agent-runs/" + run_id).json()
+    assert result["steps"][0]["status"] == "failed"
+    assert result["steps"][0]["error_code"] == "server_restarted"
+
+
+def test_exact_symbol_lookup_requires_no_embedding_and_scopes_locations(api, fake_download):
+    prefix = imported(api)
+    imported(api)  # Another snapshot has identical names; its locations must not leak.
+    with Session(api.app.state.database) as session:
+        repository = session.get(Repository, prefix.rsplit("/", 1)[1])
+        tools = ReadTools(session, repository, None, None)
+        result = tools.execute("find_symbol", {"query": "login"})
+        assert result["total"] == 2
+        assert {row["path"] for row in result["symbols"]} == {"auth.py", "client.ts"}
+        assert not tools.evidence
+        assert tools.execute("find_symbol", {"query": "Login"})["total"] == 0

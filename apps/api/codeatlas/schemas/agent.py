@@ -32,7 +32,9 @@ class AgentDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
     plan: list[str] = Field(min_length=1, max_length=4)
     summary: str = Field(min_length=1, max_length=300)
-    action: Literal["list_files", "search_code", "read_file", "inspect_dependencies", "finish"]
+    action: Literal[
+        "list_files", "search_code", "find_symbol", "read_file", "inspect_dependencies", "finish"
+    ]
     arguments: AgentArguments
     answer: ModelAnswer | None
 
