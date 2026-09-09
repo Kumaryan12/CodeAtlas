@@ -1,24 +1,23 @@
 # CodeAtlas
 
-A codebase intelligence platform built incrementally around deterministic source analysis, grounded retrieval, and reviewable engineering actions.
+**Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 0 — project foundation.** This is a working application shell, not yet a repository analyzer. Repository ingestion, parsing, graphs, AI, and agents are not implemented.
+**Current milestone: 1 — deterministic repository analysis.** No LLM or API key is required. Dependency graphs, repository Q&A, and autonomous engineering are future milestones.
 
 ## What works
 
-- Next.js App Router workspace with TypeScript and Tailwind CSS; responsive empty state and live API connectivity check.
-- FastAPI service with typed health responses, database readiness, and OpenAPI documentation.
-- Environment-based configuration and a lazy SQLAlchemy PostgreSQL connection pool.
-- Local PostgreSQL Compose service with a persistent volume and health check.
-- Backend behavior tests, Python lint/format checks, and frontend lint/type/build checks.
+- Public GitHub URL validation, metadata lookup, default-branch commit resolution, and bounded archive downloads.
+- Isolated temporary workspaces, archive validation, file/language detection, skip statistics, and automatic cleanup.
+- Python AST and JavaScript/TypeScript Tree-sitter parsing, including JSX/TSX, symbol parameters, parent relationships, and exact line ranges.
+- PostgreSQL snapshot persistence with Alembic migrations, transactional bulk writes, and recorded import failures.
+- Repository selection, searchable file tree, syntax-highlighted code, symbol navigation, file statistics, and parser warnings.
+- Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
-## Prerequisites
+## Quick start
 
-Node.js 22.13+ (or a newer supported Node release), npm, Python 3.12+, and Docker with Compose for PostgreSQL. Development was verified with Node 26 and Python 3.14 on macOS. No LLM keys or GitHub tokens are needed.
+Prerequisites: Node.js 22.13+, npm, Python 3.12+, Docker Desktop or a running Docker daemon with Compose. Development is verified on macOS with Node 26 and Python 3.14. Use one API worker for this synchronous MVP.
 
-## Setup
-
-Run from the repository root:
+From the project root, on first setup:
 
 ```sh
 cp .env.example .env
@@ -28,57 +27,120 @@ apps/api/.venv/bin/python -m pip install -r apps/api/requirements-dev.lock
 apps/api/.venv/bin/python -m pip install --no-deps -e apps/api
 ```
 
-The Python lock file pins the tested development environment, including transitive dependencies. It is a pip version snapshot, not a cross-platform hash lock. For deliberate dependency upgrades, install `-e 'apps/api[dev]'`, rerun checks, and regenerate with `pip freeze --exclude codeatlas-api` using the project virtual environment.
-
-Start Docker Desktop (or your Docker daemon), then:
+Preserve an existing `.env` when updating the project. Start Docker, then:
 
 ```sh
-docker compose up -d postgres
+docker compose up -d --wait postgres
+apps/api/.venv/bin/alembic -c apps/api/alembic.ini upgrade head
 ```
 
-In terminal 1, from the root:
+Terminal 1:
 
 ```sh
 apps/api/.venv/bin/uvicorn codeatlas.main:app --app-dir apps/api --reload --host 127.0.0.1 --port 8000
 ```
 
-In terminal 2, from the root:
+Terminal 2:
 
 ```sh
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. API docs: http://127.0.0.1:8000/docs.
+Open **http://127.0.0.1:3000** and import `https://github.com/Kumaryan12/CodeAtlas`. For interactive API docs, open http://127.0.0.1:8000/docs.
 
-The web and API applications can start without PostgreSQL. Database readiness will return 503 until PostgreSQL is available. The workspace indicator reports API liveness, not database readiness.
+Each import creates a new snapshot, even for a previously imported URL. It resolves the current default branch to a commit before downloading. Existing snapshots do not change when GitHub changes.
 
-For a production-mode frontend smoke test: `npm run build && npm start`. This foundation is for local development; deployment, authentication, and production hardening are future work.
+The API and frontend can start without PostgreSQL, but imports and repository browsing require a reachable, migrated database. `/api/health` reports process liveness; `/api/ready` checks database connectivity, not migration currency. Use `alembic check` separately to check schema agreement.
+
+For a production-mode local frontend smoke test: `npm run build && npm start`. Authentication and deployment hardening are not included; keep this development application on loopback.
+
+## Using the workspace
+
+1. Enter a public repository root URL. Keep the page open while the synchronous import runs.
+2. Select a snapshot in the sidebar. Its branch, pinned commit, status, and source statistics appear above the explorer.
+3. Expand directories or filter by path; select a file to read source and inspect symbols.
+4. Select a symbol to jump to its source page and highlight its line-number range. Code is paginated at 200 lines to bound rendering work.
+5. Review scan details for skipped files and parser warnings. Language percentages use indexed file counts, not lines of code.
+6. Use the sidebar refresh control to reload snapshots. Failed imports retain a useful error; re-enter the URL to create another attempt.
+
+A snapshot with malformed source is marked `partial`; unaffected files and readable source remain available. A valid repository with no supported source files produces an explicit empty state, not an import error.
+
+## Architecture
+
+```text
+Browser → Next.js workspace / fixed same-origin proxy → FastAPI
+                                                        │
+               GitHub metadata → commit-pinned archive ──┤
+                                                        ↓
+                      bounded temporary workspace → trusted parser subprocess
+                                                        ↓
+                           scan results → transactional PostgreSQL snapshot
+```
+
+Source is stored once per file. Symbols store names, types, parameters, parent IDs, and line ranges; source snippets can be derived from the file without duplicating class/function bodies. Current import strings are unresolved observations, not a dependency graph.
+
+See [development guide](docs/development.md) for architecture trade-offs and interview questions, [source tree](docs/structure.md), and [verification record](docs/verification.md).
 
 ## Configuration
 
-Root `.env` is read by Compose, FastAPI, and the Next.js configuration. Restart applications after changes. Do not commit it.
+Root `.env` is read by Compose, FastAPI, and Next.js configuration. Restart services after changes. Never commit it.
 
 | Variable | Purpose |
 | --- | --- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Local Compose database initialization |
-| `POSTGRES_PORT` | Host PostgreSQL port (default 5432) |
-| `CODEATLAS_DATABASE_URL` | SQLAlchemy connection URL using `postgresql+psycopg` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Local PostgreSQL initialization |
+| `POSTGRES_PORT` | Host database port, default 5432 |
+| `CODEATLAS_DATABASE_URL` | SQLAlchemy PostgreSQL URL using the psycopg driver |
 | `API_BASE_URL` | Server-only Next.js upstream API address |
+| `CODEATLAS_WORKSPACE_ROOT` | Optional absolute temporary-workspace root; defaults to project `workspaces/` |
+| `CODEATLAS_MAX_DOWNLOAD_BYTES` | Compressed archive limit; default 20 MiB |
+| `CODEATLAS_DOWNLOAD_TIMEOUT_SECONDS` | Download deadline; default 45 seconds, maximum 60 |
+| `CODEATLAS_ANALYSIS_TIMEOUT_SECONDS` | Hard parser-subprocess timeout; default/maximum 60 seconds |
 
-If you change the host port or credentials, also update `CODEATLAS_DATABASE_URL`. Compose initialization variables apply only when its data volume is first created; changing `.env` does not update an existing database password. Do not delete an existing volume unless its data is disposable. The checked-in example credentials are exclusively for local development.
+Update `CODEATLAS_DATABASE_URL` too if you change database credentials or the host port. Compose initialization variables only apply to a new data volume; changing `.env` does not change an existing database password. Example credentials are for local development only.
 
-## API
+The Python lock file pins the tested development environment, including transitive packages; it is a pip version snapshot, not a cross-platform hash lock. For deliberate upgrades, install `-e 'apps/api[dev]'`, rerun checks, and regenerate using `apps/api/.venv/bin/python -m pip freeze --exclude codeatlas-api`.
+
+## REST API
 
 | Route | Behavior |
 | --- | --- |
-| `GET /api/health` | 200: process liveness; no database access |
-| `GET /api/ready` | 200 after `SELECT 1`; 503 with `error.code=database_unavailable` on database failure |
-| `GET /docs` | Interactive OpenAPI documentation |
-| `GET /openapi.json` | Machine-readable API schema |
+| `POST /api/repositories` | JSON `{ "url": "https://github.com/owner/repo" }`; 201 on completed analysis |
+| `GET /api/repositories` | Paginated snapshots; `limit` defaults to 50, max 100; `offset` supported |
+| `GET /api/repositories/{id}` | Snapshot metadata, state, statistics, and error |
+| `GET /api/repositories/{id}/files` | Source-file summaries; `limit` defaults to/max 1000; `offset` supported |
+| `GET /api/repositories/{id}/files/{file_id}` | Full source, imports, warnings, and file symbols |
+| `GET /api/repositories/{id}/symbols` | Located symbols; optional `file_id`; `limit` defaults to 200, max 1000; `offset` supported |
+| `GET /api/health` | 200 liveness, no database access |
+| `GET /api/ready` | 200 after `SELECT 1`; sanitized 503 on database failure |
+| `GET /docs`, `GET /openapi.json` | Interactive documentation and machine-readable schema |
 
-The frontend's own `/api/health` route proxies the fixed backend health path with a four-second timeout, returning a sanitized 503 if the API is unreachable or returns an invalid response. Browsers use the same origin; no permissive CORS configuration is needed.
+List responses contain `{ "items": [...], "total": N }`. Application errors use `{ "error": { "code": "...", "message": "..." } }`. Invalid parameters return 422; unavailable repositories 404; concurrent imports 409; size violations 413; upstream refusal/rate limits 429; network/upstream failures 502; database failures 503; timeouts 504.
 
-## Verification
+## Security boundaries and limits
+
+Repository code is never executed, imported, installed, or tested. Only the trusted CodeAtlas parser runs, via a fixed subprocess command with isolated Python imports and a minimal environment. This process boundary provides timeout enforcement; it is **not an OS security sandbox** for native-parser vulnerabilities.
+
+- Only HTTPS `github.com/owner/repo` roots are accepted. No credentials, ports, query strings, fragments, subpaths, arbitrary hosts, or redirects.
+- Network requests use fixed GitHub API/codeload hosts, no environment proxy/credentials, bounded streams, and timeouts.
+- Before tar parsing, gzip expansion is bounded to **100 MiB**, including extended headers. Archive entries are capped at **10,000**.
+- Absolute paths, traversal, backslashes, control characters, duplicate/case-colliding paths, links, sparse files, and special entries reject the archive. No archive paths are extracted onto disk.
+- Supported individual source files are capped at **512 KiB**; aggregate source at **10 MiB**; symbols at **20,000**. Oversized individual files are skipped; aggregate limits reject the import.
+- Generated files, binaries, unsupported encodings/types, and common dependency/build directories are skipped with counts. Source must be UTF-8; these are explicit heuristics, not a complete `.gitignore` interpreter.
+- Import JSON is capped at **4 KiB** in both services. The frontend rejects browser imports from other origins and forwards only allowed repository routes.
+- Temporary workspaces are removed after normal completion or handled failures. Persisted source is returned by repository/file IDs, never user-provided filesystem paths.
+- Logs contain event names, snapshot IDs, status/error codes, and duration; raw code, credentials, and raw exception text are excluded from application ingestion logs.
+
+## Known limitations
+
+- Local, single-user application with **one synchronous import per API process**. Use one worker. No durable queue, cross-process concurrency control, total storage quota, or cancellation yet. A disconnected client does not cancel the import.
+- If the API is killed mid-import or the database stays unavailable, a snapshot may remain `importing`; refresh before retrying. There is no automatic crash recovery or orphan-workspace scavenger yet. A new import creates a separate snapshot.
+- Public default branches only; no private-repository authentication, arbitrary branch selection, repository history, submodules, or Git LFS content. Unauthenticated GitHub limits apply; moved repositories require their current URL. Commit metadata is bounded to 2 MB and repository metadata to 1 MB.
+- The file tree shows eligible source files, not every repository asset. Symlinks anywhere in an archive cause rejection, even when a legitimate repository uses them.
+- Symbol extraction is basic static analysis. Tree-sitter warnings are parser diagnostics, not proof of invalid code: valid JSX text containing a bare `&` can trigger a warning in the current grammar. Python uses the running interpreter's grammar. JS/TS covers named declarations, assigned functions/arrows/classes, class methods, interfaces and type aliases; anonymous exports, overload semantics, dynamic behavior, and complete call resolution are not modeled.
+- Import strings are Python static imports and JS/TS static import/re-export paths; CommonJS/dynamic import resolution and graph edges are deferred.
+- Browser visual verification was unavailable in this environment. Unit tests, production builds, and live HTTP checks do not replace visual/hydration/accessibility testing.
+
+## Checks
 
 ```sh
 apps/api/.venv/bin/pytest apps/api/tests -q
@@ -86,37 +148,23 @@ apps/api/.venv/bin/ruff check apps/api
 apps/api/.venv/bin/ruff format --check apps/api
 npm run lint
 npm run typecheck
+npm test
 npm run build
 docker compose config --quiet
-curl -i http://127.0.0.1:8000/api/health
+apps/api/.venv/bin/alembic -c apps/api/alembic.ini check
 curl -i http://127.0.0.1:8000/api/ready
-curl -i http://127.0.0.1:3000/api/health
 ```
 
-Manual checks:
-
-1. Open the workspace; check the empty state and the API online indicator.
-2. Stop FastAPI and press the connection refresh button. Expect API offline; restart FastAPI and retry to restore online status.
-3. Check `/api/ready` with PostgreSQL available (200) and stopped (503). The response must not include connection details.
-4. Resize to a narrow viewport; navigation and roadmap cards should stack without horizontal scrolling.
-5. Open `/docs` and try both health endpoints.
-
-See [development notes](docs/development.md) for decisions, trade-offs, milestone boundaries, and the exact source tree. See [verification record](docs/verification.md) for checks performed in this environment.
-
-## Security and limitations
-
-No repository code is downloaded or executed in Milestone 0. Development servers and the Compose database bind only to loopback. Database connection errors are sanitized, database URLs are represented as secrets, and `.env` and future untrusted workspaces are ignored by Git. This is not a complete production security boundary: authentication, request limits, structured request tracing, and sandboxed execution are not implemented.
-
-There are no database tables yet. Milestone 1 will introduce Alembic migrations with the first entities; application startup will not call `create_all`. No vector database, task queue, empty agent framework, or React Flow dependency is installed before it is useful.
+Backend tests use generated hostile archives, small fixture repositories, mocked GitHub responses, the real parser subprocess, and an ephemeral SQLite database with foreign keys enabled and actual Alembic migrations. Live PostgreSQL/GitHub verification is recorded separately. Tests never require downloading a massive real repository.
 
 ## Roadmap
 
-0. **Foundation** — web/API shells, configuration, health, setup.
-1. **Deterministic repository analysis** — safe public GitHub ingestion, file scanning, Python/JS/TS symbols, persisted metadata, file explorer and statistics.
-2. **Dependency graph** — import resolution and React Flow visualization.
-3. **Grounded Q&A** — semantic code indexing, provider abstraction, source citations.
-4. **Retrieval quality** — hybrid search, graph expansion, diagnostics and evaluation.
-5. **Read-only agent** — constrained tools and structured execution traces.
-6. **Reviewable edits** — isolated workspaces and diffs.
-7. **Sandboxed tests** — bounded execution and retries.
-8. **Approved pull requests** — explicit human approval before remote changes.
+0. **Foundation — complete:** monorepo, service shells, configuration and health.
+1. **Deterministic analysis — implemented:** safe ingestion, symbols, persistence and explorer.
+2. **Dependency graph — next:** Python/JS/TS import resolution, graph API, React Flow visualization.
+3. **Grounded Q&A:** semantic code indexing, provider abstraction and source citations.
+4. **Retrieval quality:** hybrid search, graph expansion, diagnostics and evaluation.
+5. **Read-only agent:** constrained tools and structured traces.
+6. **Reviewable edits:** isolated workspaces and diffs.
+7. **Sandboxed tests:** bounded execution and retries.
+8. **Approved pull requests:** explicit human approval before remote changes.

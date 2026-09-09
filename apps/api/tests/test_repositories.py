@@ -175,3 +175,19 @@ def test_database_failure_rolls_back_all_files(api, fake_download):
     assert repo["status"] == "failed"
     assert repo["file_count"] == 0
     assert api.get(f"/api/repositories/{repo['id']}/files").json()["items"] == []
+
+
+def test_summary_queries_do_not_load_source_text(api, fake_download):
+    repo = api.post("/api/repositories", json={"url": "https://github.com/a/b"}).json()
+    statements = []
+
+    @event.listens_for(api.app.state.database, "before_cursor_execute")
+    def record_selects(connection, cursor, statement, parameters, context, executemany):
+        if statement.startswith("SELECT"):
+            statements.append(statement)
+
+    assert api.get(f"/api/repositories/{repo['id']}/files").status_code == 200
+    assert api.get(f"/api/repositories/{repo['id']}/symbols").status_code == 200
+    assert statements
+    assert all("repository_files.source" not in statement for statement in statements)
+    assert all("repository_files.imports" not in statement for statement in statements)

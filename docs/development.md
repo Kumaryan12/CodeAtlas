@@ -1,96 +1,67 @@
 # Development guide
 
-## Architecture and decisions
+## Milestone 1 architecture
 
-The browser renders the Next.js workspace and requests its same-origin health route. Next.js forwards that fixed request to FastAPI. FastAPI owns database access through SQLAlchemy and psycopg. PostgreSQL runs independently in Compose. The backend uses synchronous endpoints for blocking database operations, which FastAPI runs in its thread pool.
+The browser uses Next.js's fixed same-origin repository proxy. FastAPI validates the request, creates an `importing` snapshot, resolves the public repository's default branch to a commit, and downloads a bounded archive. A trusted Python subprocess decompresses/scans the archive and invokes Python AST or Tree-sitter. It returns normalized files and symbols as JSON. The parent process stores those results with bulk inserts in a database transaction and marks the snapshot `ready` or `partial`.
 
-| Choice | Why | Alternative and trade-off | Interview question |
+A handled download/analysis failure marks the snapshot `failed` without publishing partial file rows. A transient database write failure rolls back all results and attempts to record failure in a fresh transaction. If the database remains unavailable, that status cannot be saved; the stale snapshot is an explicit limitation.
+
+The subprocess never starts a repository interpreter, runs its entry point, imports its modules, installs dependencies, or invokes its tests. `python -I -m codeatlas.ingestion.worker` loads the installed trusted CodeAtlas package, not code from the downloaded repository. Its environment does not receive database credentials.
+
+## Decisions and interview questions
+
+| Choice | Why | Alternatives / trade-offs | Interview question |
 | --- | --- | --- | --- |
-| npm workspaces with `apps/web` and `apps/api` | One repository, independent application runtimes, little orchestration | Turborepo can add caching later; extra setup is not useful yet | Why a monorepo rather than separate repos? |
-| Next.js App Router | Typed React application and a small server boundary | A Vite SPA is simpler but needs a separate proxy/deployment arrangement | What belongs on the server versus in the browser? |
-| Same-origin health proxy | Keep upstream configuration server-side and bound network timeout | Direct browser-to-API calls avoid a hop but need CORS and a public API URL | What does a backend-for-frontend boundary buy us? |
-| FastAPI application factory and lifespan | Isolated tests and explicit pool disposal | Import-time global connections make lifecycle/testing harder | Why manage resources during application lifespan? |
-| SQLAlchemy + PostgreSQL | Relational constraints and transactions fit repository/file/symbol relationships | SQLite is easier locally but differs from the intended deployment database | How would you keep a repository and its files consistent? |
-| Separate liveness and readiness | An unavailable database should fail readiness without making liveness fail | One combined endpoint is simpler but can trigger unnecessary process restarts | When should an orchestrator restart versus stop routing traffic? |
-| No initial tables | Persist only when requirements establish entities and constraints | Creating every future entity now locks in speculative schemas | When should you introduce a database migration? |
+| Commit-pinned archives | Repeatable source locations with a recorded SHA; no Git hooks or history download | Shallow clone supports more Git operations but adds process/Git configuration boundaries | What happens if a branch changes during indexing? |
+| Fixed GitHub hosts, no redirects | User input cannot select an arbitrary network destination | Following verified redirects could support renamed repositories but increases validation complexity | How do you prevent SSRF in repository ingestion? |
+| Bounded decompression before tar interpretation | Extended headers and compression ratios also consume resources | Streaming tar directly saves disk but makes expansion/header limits easier to miss | Why is checking compressed download size insufficient? |
+| Python AST plus Tree-sitter | Python's built-in grammar gives reliable structure; Tree-sitter covers JS/TS/JSX/TSX and partial syntax errors | Regex cannot reliably model nested syntax; one parser framework would simplify interfaces but add Python grammar dependencies | Why not extract functions with regex? |
+| Normalized parser results | Parser-specific trees stay inside parser modules; downstream storage/UI share one symbol shape | Persisting raw ASTs exposes consumers to language-specific schemas | How would you add another language? |
+| Separate trusted parser process | Hard timeout can terminate stuck Python or native parser work | Thread timeouts cannot reliably stop native work; containers add a stronger boundary but more infrastructure | What does process isolation protect, and what does it not protect? |
+| Three relational tables | Snapshots own files; files own symbols; FKs enforce ownership and parent relationships | Graph/vector stores are premature before graph/retrieval requirements exist | What consistency should a completed snapshot guarantee? |
+| Source stored once | Symbol line ranges provide source access without duplicating nested bodies | Storing snippets is convenient for retrieval but needs synchronization/versioning | How do citations remain valid after the repository changes? |
+| Bulk writes inside one transaction | Avoid per-symbol/file round trips; either all analysis results are committed or none are | Per-file commits reduce transaction size but make completed-state semantics harder | How do you avoid partially indexed snapshots? |
+| Synchronous one-import gate | Small MVP with visible error handling and no queue infrastructure | A durable queue supports retries/progress and multiple workers; needed before wider deployment | What breaks if you run multiple API workers today? |
+| Same-origin proxy | Backend address remains server-side; fixed route allowlist and browser-origin checks | Direct browser API calls avoid a hop but require CORS/deployment decisions | Why compare Origin to the actual Host header rather than Next.js's normalized URL host? |
+| Paginated source and bounded highlighting | Prevent very large files/symbol lists from overwhelming rendering | Virtualized editors provide smoother large-file navigation with more dependencies | How do you keep a source viewer responsive on untrusted input? |
 
-The frontend follows the [Next.js installation guidance](https://nextjs.org/docs/app/getting-started/installation). Backend configuration and lifecycle follow [FastAPI settings](https://fastapi.tiangolo.com/advanced/settings/) and [lifespan guidance](https://fastapi.tiangolo.com/advanced/events/).
+The existing monorepo and application factory keep frontend/backend runtimes separate and resource lifecycle explicit. Synchronous database work runs in FastAPI's thread pool; only the parsing subprocess is force-terminated on its deadline. No total wall-clock limit covers database transaction time or process startup, so this is not yet a production job scheduler.
 
-## Source tree
+Reference documentation: [Tree-sitter Python binding](https://tree-sitter.github.io/py-tree-sitter/), [Alembic migration environment](https://alembic.sqlalchemy.org/en/latest/tutorial.html), [GitHub repository contents/archive API](https://docs.github.com/en/rest/repos/contents).
 
-Generated dependencies, local `.env`, caches, and build output are omitted.
+## Database and migration workflow
 
-```text
-CodeAtlas/
-├── .env.example
-├── .gitignore
-├── README.md
-├── compose.yaml
-├── package.json
-├── package-lock.json
-├── apps/
-│   ├── api/
-│   │   ├── pyproject.toml
-│   │   ├── requirements-dev.lock
-│   │   ├── codeatlas/
-│   │   │   ├── __init__.py
-│   │   │   ├── main.py
-│   │   │   ├── api/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── health.py
-│   │   │   └── core/
-│   │   │       ├── __init__.py
-│   │   │       ├── config.py
-│   │   │       └── database.py
-│   │   └── tests/
-│   │       └── test_health.py
-│   └── web/
-│       ├── package.json
-│       ├── next-env.d.ts
-│       ├── next.config.ts
-│       ├── tsconfig.json
-│       ├── eslint.config.mjs
-│       ├── postcss.config.mjs
-│       └── src/
-│           ├── app/
-│           │   ├── globals.css
-│           │   ├── layout.tsx
-│           │   ├── page.tsx
-│           │   └── api/health/route.ts
-│           └── components/api-status.tsx
-└── docs/
-    ├── development.md
-    └── verification.md
-```
+- `repositories`: immutable source identity plus analysis state, counts, languages, skip counts and safe failure text.
+- `repository_files`: repository-scoped unique paths, language, source, size, parser warning and observed imports.
+- `code_symbols`: file ownership, type, name, parameters, parent symbol and line ranges. Repository and language can be obtained through the owning file.
+- No users, conversations, agents, embeddings or graph tables yet.
+
+Run migrations explicitly with `apps/api/.venv/bin/alembic -c apps/api/alembic.ini upgrade head`. Startup never invokes `create_all`. Run `alembic ... check` against PostgreSQL after model changes. Tests apply, compare, downgrade and reapply the exact migration on ephemeral SQLite with foreign keys enabled; this is complemented by live PostgreSQL validation, not a replacement for it.
+
+The migration creates foreign keys, a repository/path uniqueness constraint, a symbol/file index and a snapshot-created-time index. Path/file pagination and snapshot-scoped lookup avoid exposing filesystem access. File and symbol summary queries deliberately exclude source text; deferred-column guards prevent an accidental lazy reload that would duplicate large source bodies across symbols. Reimporting creates a distinct identity and does not overwrite old source.
 
 ## Working conventions
 
-- Implement one small milestone at a time. Describe changes before editing; verify behavior before calling it done.
-- Commit and push to `Kumaryan12/CodeAtlas` at meaningful checkpoints. Inspect staged changes and never include local configuration, credentials, dependencies, or generated output.
-- Add layers only when a real use case requires them. Domain persistence, parsing, retrieval, AI, and agent modules will be introduced with their milestones.
-- Do not execute untrusted repositories during ingestion. Future execution must use a sandbox with explicit resource limits.
-- Write schema changes through Alembic migrations when the first tables are introduced.
-- Keep future model providers behind interfaces, and enforce tool permissions outside the model. No AI code is required now.
+- Implement one reviewable milestone at a time; inspect current state first, preserve working behavior and stop at the agreed milestone boundary.
+- Commit and push to `Kumaryan12/CodeAtlas` at meaningful checkpoints after inspecting staged content.
+- Never commit `.env`, generated dependencies/builds, or imported repository workspaces.
+- Keep parser fixture files out of automated formatting: exact source locations and malformed examples are intentional test inputs.
+- Add only layers used by current behavior. API endpoints share database/session dependencies; ingestion orchestration and parsers stay outside route handlers.
+- Do not execute untrusted source. Future test execution needs an actual sandbox, permissions, resource controls and traces.
+- Keep future model providers behind interfaces; introduce those interfaces when Q&A begins.
 
-## Intentional deferrals
+The [source tree](structure.md) lists the actual tracked files.
 
-This milestone has no authentication, database entities, migrations, ingestion, parser, queue, graph, embeddings, AI provider, agent, deployment, or CI. Database readiness unit tests mock the database boundary; a real PostgreSQL check is a separate integration check. UI behavior is small enough for lint/type/build plus runtime smoke checks at this stage. Add dedicated frontend interaction tests once repository state and user inputs arrive.
+## Intentional debt and next work
 
-## Proposed Milestone 1
+The local application has no authentication, total storage quota, deletion/retention policy, durable queue, crash recovery, cross-process import lock, CI, graph, retrieval, LLM or agent. Imports have bounded network streams and a hard analysis timeout, but the parser process is not an OS sandbox. Native-parser exploitation and memory isolation need stronger boundaries before accepting arbitrary repositories in a hosted multi-user deployment.
 
-Deliver public GitHub ingestion and deterministic analysis in reviewable slices:
+Archive scanning is intentionally conservative: reject links and unusual paths, skip generated files using heuristics, and show only supported UTF-8 source files. `.gitignore` semantics, encodings other than UTF-8, CommonJS imports, anonymous exports and overload semantics remain future parser refinements. Tree-sitter can report diagnostics for valid framework syntax; a real self-import exposed its bare-ampersand JSX-text limitation, which remains visible as a partial-index warning rather than being suppressed.
 
-1. URL validation and bounded archive download into isolated workspaces, rejecting unsafe paths and links, enforcing timeouts and compressed/uncompressed byte and file-count limits. Never execute code.
-2. Scan supported source files; skip generated directories, binaries, oversized files, and unsupported languages, reporting skip counts and partial failures.
-3. Define normalized symbols and parser contracts, implement Python AST and justified JS/TS Tree-sitter parsing with small fixture repositories.
-4. Add `Repository`, `RepositoryFile`, and `CodeSymbol` models with Alembic migrations, status/error fields and transaction boundaries. No speculative user, chat, agent, or embedding tables.
-5. Add typed repository/file/symbol API routes and connect import, explorer, statistics, and symbol views to real data.
-6. Test malformed URLs, unavailable repositories, traversal and archive bombs, ignore rules, malformed source, parser behavior, and API errors.
+ESLint 9 is retained because the current Next.js React lint plugin failed with ESLint 10; its upstream support warning is known tooling debt. Backend tests still expose upstream Starlette/httpx and AnyIO deprecation warnings. The frontend retains Webpack because Turbopack's CSS worker could not bind its internal port in the original managed environment.
 
-Dependency graphs are Milestone 2. Milestone 1 begins only after the user's next instruction.
+## Proposed Milestone 2
 
-## Dependency compatibility note
+Resolve the static Python/JS/TS import strings already recorded into a repository-scoped file dependency graph. Keep unresolved external imports explicit. Define graph node/edge response schemas and tests for relative imports, package entry points, cycles, aliases and unresolved imports. Add React Flow only when the graph view is implemented; node selection should reuse the existing source/symbol explorer. Do not claim a complete call graph from import edges.
 
-ESLint 9.39.5 is intentionally retained: ESLint 10.10.0 fails in the React plugin supplied by the current Next.js configuration (`contextOrFilename.getFilename is not a function`). npm reports ESLint 9 as unsupported. Upgrade when that plugin supports ESLint 10, and remove this documented tooling debt after lint passes on the newer major. Backend tests currently produce upstream Starlette/httpx and AnyIO deprecation warnings; keep them visible and revisit the test-client dependency during upgrades.
-
-The frontend scripts use Next.js's Webpack option. Turbopack's CSS worker could not bind its internal port in this managed environment, including on a retry with elevated permissions. Webpack preserves the requested Next.js/Tailwind stack and avoids that worker constraint; reconsider Turbopack once the environment supports it.
+Milestone 2 starts only after the user's next instruction.

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer, load_only
 
 from codeatlas.core.errors import DomainError
 from codeatlas.models.repository import CodeSymbol, Repository, RepositoryFile
@@ -82,6 +82,10 @@ def list_files(
     repository = get_repository(session, repository_id)
     files = session.scalars(
         select(RepositoryFile)
+        .options(
+            defer(RepositoryFile.source, raiseload=True),
+            defer(RepositoryFile.imports, raiseload=True),
+        )
         .where(RepositoryFile.repository_id == repository.id)
         .order_by(RepositoryFile.path)
         .limit(limit)
@@ -127,7 +131,16 @@ def list_symbols(
     conditions = [RepositoryFile.repository_id == str(repository_id)]
     if file_id:
         conditions.append(CodeSymbol.file_id == str(file_id))
-    query = select(CodeSymbol, RepositoryFile).join(RepositoryFile).where(*conditions)
+    query = (
+        select(CodeSymbol, RepositoryFile)
+        .join(RepositoryFile)
+        .options(
+            load_only(
+                RepositoryFile.id, RepositoryFile.path, RepositoryFile.language, raiseload=True
+            )
+        )
+        .where(*conditions)
+    )
     rows = session.execute(
         query.order_by(RepositoryFile.path, CodeSymbol.start_line, CodeSymbol.id)
         .limit(limit)
