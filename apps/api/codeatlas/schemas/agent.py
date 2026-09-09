@@ -9,6 +9,7 @@ from codeatlas.schemas.qa import Citation, ModelAnswer
 class InvestigationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     task: str = Field(min_length=1, max_length=1500)
+    mode: Literal["investigate", "edit"] = "investigate"
 
     @field_validator("task")
     @classmethod
@@ -48,7 +49,7 @@ class AgentDecision(BaseModel):
 
 class AgentStep(BaseModel):
     number: int
-    kind: Literal["model", "read"]
+    kind: Literal["model", "read", "write"]
     action: str
     status: Literal["running", "completed", "failed"]
     started_at: str
@@ -65,6 +66,7 @@ class RunSummary(BaseModel):
     id: str
     repository_id: str
     task: str
+    mode: Literal["investigate", "edit"]
     status: Literal["running", "completed", "failed", "limited", "interrupted"]
     model: str
     created_at: datetime
@@ -81,4 +83,41 @@ class RunResponse(RunSummary):
 
 class RunList(BaseModel):
     items: list[RunSummary]
+    total: int
+
+
+class DraftArguments(AgentArguments):
+    path: str | None = Field(default=None, max_length=200)
+    expected_sha256: str | None = Field(default=None, max_length=64)
+    old_text: str | None = Field(default=None, max_length=12000)
+    new_text: str | None = Field(default=None, max_length=12000)
+    content: str | None = Field(default=None, max_length=12000)
+
+
+class DraftDecision(AgentDecision):
+    action: Literal[
+        "list_files",
+        "search_code",
+        "find_symbol",
+        "read_file",
+        "inspect_dependencies",
+        "read_workspace",
+        "edit_file",
+        "create_file",
+        "view_diff",
+        "finish",
+    ]
+    arguments: DraftArguments
+
+
+class FileDiff(BaseModel):
+    path: str
+    status: Literal["added", "modified"]
+    diff: str
+
+
+class WorkspaceDiff(BaseModel):
+    run_id: str
+    commit_sha: str | None
+    files: list[FileDiff]
     total: int

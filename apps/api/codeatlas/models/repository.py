@@ -104,6 +104,10 @@ class AgentRun(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     repository_id: Mapped[str] = mapped_column(ForeignKey("repositories.id", ondelete="CASCADE"))
     task: Mapped[str] = mapped_column(Text)
+    mode: Mapped[str] = mapped_column(
+        String(20), default="investigate", server_default="investigate"
+    )
+    changes: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     status: Mapped[str] = mapped_column(String(20), default="running")
     model: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(

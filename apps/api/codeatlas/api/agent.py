@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, load_only
 
 from codeatlas.agents.runner import execute_run
 from codeatlas.agents.tools import ReadTools
+from codeatlas.agents.workspace import DraftWorkspace
 from codeatlas.ai.investigator import InvestigationProvider, get_investigator
 from codeatlas.api.qa import ready_repository
 from codeatlas.api.repositories import Database
@@ -20,6 +21,7 @@ from codeatlas.schemas.agent import (
     RunList,
     RunResponse,
     RunSummary,
+    WorkspaceDiff,
 )
 from codeatlas.schemas.qa import Citation
 
@@ -76,6 +78,7 @@ def start_investigation(
         run = AgentRun(
             repository_id=repository.id,
             task=payload.task,
+            mode=payload.mode,
             model=request.app.state.settings.answer_model,
         )
         session.add(run)
@@ -134,6 +137,19 @@ def get_run(repository_id: UUID, run_id: UUID, session: Database):
     if run is None:
         raise DomainError("run_not_found", "Investigation was not found in this snapshot.", 404)
     return run_response(session, run)
+
+
+@router.get("/{repository_id}/agent-runs/{run_id}/diff", response_model=WorkspaceDiff)
+def get_workspace_diff(repository_id: UUID, run_id: UUID, session: Database):
+    repository = ready_repository(session, repository_id)
+    run = session.scalar(
+        select(AgentRun).where(AgentRun.id == str(run_id), AgentRun.repository_id == repository.id)
+    )
+    if run is None or run.mode != "edit":
+        raise DomainError(
+            "workspace_not_found", "Draft workspace was not found in this snapshot.", 404
+        )
+    return DraftWorkspace(session, run, repository).diff()
 
 
 def recover_interrupted(engine):

@@ -10,9 +10,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from codeatlas.agents.tools import ReadTools
+from codeatlas.agents.workspace import DraftWorkspace
 from codeatlas.core.errors import DomainError
 from codeatlas.models.repository import AgentRun, Repository
-from codeatlas.schemas.agent import AgentDecision, AgentStep
+from codeatlas.schemas.agent import AgentDecision, AgentStep, DraftDecision
 
 MAX_TOOLS = 5
 MAX_DECISIONS = 6
@@ -64,6 +65,12 @@ def finish_run(session, run, status, code=None, message=None):
 
 
 def tool_summary(action, result):
+    if action in ("edit_file", "create_file"):
+        return f"Saved draft {result['path']}; {result['changed_files']} changed files."
+    if action == "read_workspace":
+        return f"Read current draft {result['path']}."
+    if action == "view_diff":
+        return f"Reviewed diff for {result['total']} changed files."
     if action == "list_files":
         return f"Listed {len(result['files'])} of {result['total']} matching source files."
     if action == "search_code":
@@ -81,23 +88,28 @@ def tool_summary(action, result):
 def run_loop(session, run, settings, provider):
     repository = session.get(Repository, run.repository_id)
     tools = ReadTools(session, repository, settings, provider)
+    workspace = DraftWorkspace(session, run, repository) if run.mode == "edit" else None
+    max_tools = 10 if workspace else MAX_TOOLS
+    max_decisions = 11 if workspace else MAX_DECISIONS
+    decision_model = DraftDecision if workspace else AgentDecision
     observations = []
     started = time.monotonic()
     attempts = 0
     seen = set()
-    for _ in range(MAX_DECISIONS):
+    for _ in range(max_decisions):
         if time.monotonic() - started >= MAX_SECONDS:
             return finish_run(
                 session, run, "limited", "run_timeout", "Investigation reached its time budget."
             )
         state = {
             "task": run.task,
+            "mode": run.mode,
             "repository": repository.full_name,
             "commit_sha": repository.commit_sha,
             "plan": run.plan,
             "observations": observations,
             "evidence": [c.model_dump() for c in tools.evidence.values()],
-            "remaining_tools": MAX_TOOLS - attempts,
+            "remaining_tools": max_tools - attempts,
         }
         if len(json.dumps(state, ensure_ascii=False).encode()) > MAX_CONTEXT_BYTES:
             return finish_run(
@@ -109,7 +121,7 @@ def run_loop(session, run, settings, provider):
             )
         step_started = append_step(session, run, "model", "choose_next_step")
         try:
-            decision = AgentDecision.model_validate(provider.decide(state))
+            decision = decision_model.model_validate(provider.decide(state))
         except ValidationError as exc:
             raise DomainError(
                 "invalid_agent_decision", "The model proposed an invalid investigation step.", 502
@@ -123,6 +135,12 @@ def run_loop(session, run, settings, provider):
             )
         arguments = decision.arguments.model_dump(exclude_none=True)
         if decision.action == "finish":
+            if workspace and run.changes and workspace.reviewed_changes != run.changes:
+                raise DomainError(
+                    "diff_not_reviewed",
+                    "The agent did not review its latest draft. Review the partial diff.",
+                    502,
+                )
             answer = decision.answer
             if arguments or answer is None:
                 raise DomainError(
@@ -152,22 +170,35 @@ def run_loop(session, run, settings, provider):
             raise DomainError(
                 "invalid_agent_decision", "An intermediate step cannot contain a final answer.", 502
             )
-        if attempts >= MAX_TOOLS:
+        if attempts >= max_tools:
             return finish_run(
-                session, run, "limited", "step_limit", "Investigation reached its read-tool limit."
+                session, run, "limited", "step_limit", "Investigation reached its tool limit."
             )
         signature = (decision.action, json.dumps(arguments, sort_keys=True))
         attempts += 1
-        step_started = append_step(session, run, "read", decision.action)
+        step_started = append_step(
+            session,
+            run,
+            "write" if decision.action in ("edit_file", "create_file") else "read",
+            decision.action,
+        )
         try:
-            if signature in seen:
+            if signature in seen and decision.action not in ("read_workspace", "view_diff"):
                 raise DomainError(
                     "repeated_tool_call",
                     "This read was already attempted. Use its result or finish.",
                     422,
                 )
             seen.add(signature)
-            result = tools.execute(decision.action, arguments)
+            if workspace and decision.action in (
+                "read_workspace",
+                "edit_file",
+                "create_file",
+                "view_diff",
+            ):
+                result = workspace.execute(decision.action, arguments)
+            else:
+                result = tools.execute(decision.action, arguments)
         except DomainError as exc:
             result = {"error": {"code": exc.code, "message": exc.message}}
             finish_step(session, run, step_started, exc.message, exc.code)
