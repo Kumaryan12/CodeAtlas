@@ -5,7 +5,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from codeatlas.models.repository import CodeSymbol, RepositoryFile
 
-CHUNK_VERSION = "symbols-v1"
+CHUNK_VERSION = "symbols-v2"
 MAX_CHUNK_BYTES = 6000
 MAX_CHUNKS = 2000
 MAX_INDEX_BYTES = 2_000_000
@@ -30,7 +30,8 @@ class Chunk:
 
 
 def chunk_file(file: RepositoryFile, symbols: list[CodeSymbol]) -> tuple[list[Chunk], int]:
-    lines = file.source.splitlines()
+    # Parser row offsets count LF, not Unicode separators inside string literals.
+    lines = [line.removesuffix("\r") for line in file.source.split("\n")]
     covered: set[int] = set()
     ranges = []
     # Prefer innermost symbols: enclosing classes/functions contribute only their

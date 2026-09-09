@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 2 — static dependency graphs.** No LLM or API key is required. Repository Q&A and autonomous engineering remain future milestones.
+**Current milestone: 3 — grounded repository Q&A.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. Autonomous engineering remains a future milestone.
 
 ## What works
 
@@ -12,6 +12,7 @@
 - PostgreSQL snapshot persistence with Alembic migrations, transactional bulk writes, and recorded import failures.
 - Repository selection, searchable file tree, syntax-highlighted code, symbol navigation, file statistics, and parser warnings.
 - React Flow architecture view with resolved imports, dependency inspection, cycle highlighting, filtering, and source navigation.
+- Symbol-first semantic indexing, snapshot-scoped retrieval, an AI provider interface, and an Ask view with clickable source citations.
 - Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
 ## Quick start
@@ -146,7 +147,7 @@ Repository code is never executed, imported, installed, or tested. Only the trus
 - Absolute paths, traversal, backslashes, control characters, duplicate/case-colliding paths, links, sparse files, and special entries reject the archive. No archive paths are extracted onto disk.
 - Supported individual source files are capped at **512 KiB**; aggregate source at **10 MiB**; symbols at **20,000**. Oversized individual files are skipped; aggregate limits reject the import.
 - Generated files, binaries, unsupported encodings/types, and common dependency/build directories are skipped with counts. Source must be UTF-8; these are explicit heuristics, not a complete `.gitignore` interpreter.
-- Import JSON is capped at **4 KiB** in both services. The frontend rejects browser imports from other origins and forwards only allowed repository routes.
+- Repository POST JSON is capped at **4 KiB** in both services. The frontend rejects browser requests from other origins and forwards only allowed repository routes.
 - Temporary workspaces are removed after normal completion or handled failures. Persisted source is returned by repository/file IDs, never user-provided filesystem paths.
 - Logs contain event names, snapshot IDs, status/error codes, and duration; raw code, credentials, and raw exception text are excluded from application ingestion logs.
 
@@ -159,6 +160,36 @@ Repository code is never executed, imported, installed, or tested. Only the trus
 - Symbol extraction is basic static analysis. Tree-sitter warnings are parser diagnostics, not proof of invalid code: valid JSX text containing a bare `&` can trigger a warning in the current grammar. Python uses the running interpreter's grammar. JS/TS covers named declarations, assigned functions/arrows/classes, class methods, interfaces and type aliases; anonymous exports, overload semantics, dynamic behavior, and complete call resolution are not modeled.
 - Import strings are Python static imports and JS/TS static import/re-export paths; CommonJS/dynamic import resolution is deferred; static import edges are supported.
 - Browser visual verification was unavailable in this environment. Unit tests, production builds, and live HTTP checks do not replace visual/hydration/accessibility testing.
+
+## Repository Q&A
+
+1. Add `CODEATLAS_OPENAI_API_KEY` to your existing root `.env` and restart the API. Do not put the key in browser code or a `NEXT_PUBLIC_` variable.
+2. Open a ready or partial snapshot at [localhost:3000](http://localhost:3000), select **Ask**, then **Build semantic index**. Existing snapshots work without reimporting.
+3. Ask a specific implementation question. Click a cited path to open its exact source range; return to Ask to retain the answer. Expand **Inspect supporting excerpts** to review the actual context.
+
+Indexing sends eligible source excerpts to OpenAI's embedding endpoint and stores vectors locally. Answer generation sends the question and at most six retrieved excerpts; it does not send the entire repository. Usage may incur provider charges. The default models are `text-embedding-3-small` and `gpt-4.1-mini`, configurable through `CODEATLAS_EMBEDDING_MODEL` and `CODEATLAS_ANSWER_MODEL`. Changing the embedding model makes existing indexes stale and requires rebuilding; changing the answer model does not.
+
+| Route under `/api/repositories/{id}` | Behavior |
+| --- | --- |
+| `GET /index` | Configuration availability and index state: not indexed, ready, or stale |
+| `POST /index` with `{}` | Build a complete index; reuse an index with the same fingerprint |
+| `POST /ask` with `{"question":"How does login work?"}` | Retrieve code and return claims with validated source references |
+
+Function/method/class boundaries guide chunks; uncovered declarations and module code remain searchable. Large ranges split at complete lines, with source excerpts capped at 6,000 UTF-8 bytes. Oversized lines are skipped and counted. Indexes are limited to 2,000 chunks and 2 MB of embedding input. Batches contain up to 16 excerpts. A failed rebuild preserves the previous complete index. Indexing starts no new batch after 90 seconds; the last in-flight request may take longer. Refresh status before retrying after a client timeout.
+
+There is one AI operation per API process; run one worker. Each question is independent, and the UI retains only the last 10 answers in memory. No conversation history is stored or sent. Models can still misinterpret evidence: citation IDs are checked against retrieved excerpts, but those checks do not prove that a claim is true. The model can return insufficient context. Retrieval has no calibrated relevance cutoff yet; semantic ranking alone may miss exact symbols or multi-file relationships.
+
+### Retrieval evaluation
+
+Six questions with known supporting symbols live in [evaluation/questions.json](apps/api/evaluation/questions.json). With a configured key, run:
+
+```sh
+apps/api/.venv/bin/python -m codeatlas.retrieval.evaluate --live
+```
+
+This sends only the small evaluation fixture and its questions for real embeddings, and prints Recall@1/3, MRR@1/3, rankings, model, and elapsed time. It makes no answer-generation calls. Unit tests use synthetic vectors to verify ranking mechanics and metric calculations; they **do not measure semantic quality**. No live semantic or answer-faithfulness score is claimed yet. See [verification notes](docs/verification.md).
+
+The adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). Responses use `store: false`; source text and questions are treated as untrusted data, and no execution tools are available to the model.
 
 ## Checks
 
@@ -182,8 +213,8 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 0. **Foundation — complete:** monorepo, service shells, configuration and health.
 1. **Deterministic analysis — implemented:** safe ingestion, symbols, persistence and explorer.
 2. **Dependency graph — implemented:** Python/JS/TS import resolution, graph API, React Flow visualization.
-3. **Grounded Q&A — next:** semantic code indexing, provider abstraction and source citations.
-4. **Retrieval quality:** hybrid search, graph expansion, diagnostics and evaluation.
+3. **Grounded Q&A — implemented:** semantic indexing, provider boundary, cited answers and an initial evaluation harness. Live model quality remains unmeasured in this environment.
+4. **Retrieval quality — next:** hybrid search, graph expansion, diagnostics and evaluation.
 5. **Read-only agent:** constrained tools and structured traces.
 6. **Reviewable edits:** isolated workspaces and diffs.
 7. **Sandboxed tests:** bounded execution and retries.

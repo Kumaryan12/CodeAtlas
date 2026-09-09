@@ -218,3 +218,45 @@ def test_evaluation_targets_exist_in_fixture():
     labels = {f"{c.path}:{c.symbol}" for c in fixture_chunks(directory / "fixture")}
     for case in json.loads((directory / "questions.json").read_text()):
         assert set(case["expected"]) <= labels
+
+
+def test_unicode_string_separator_does_not_shift_citation_lines():
+    file = RepositoryFile(
+        id=str(uuid4()),
+        path="auth.py",
+        language="python",
+        source='LABEL = "one\u2028two"\n\ndef login():\n    return LABEL\n',
+    )
+    symbol = CodeSymbol(id="a", name="login", kind="function", start_line=3, end_line=4)
+    chunks, _ = chunk_file(file, [symbol])
+    login = next(c for c in chunks if c.symbol == "login")
+    assert login.source == "def login():\n    return LABEL"
+    assert login.start_line == 3
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"status": "incomplete", "output": []},
+        {"status": "completed", "output": ["malformed"]},
+        {"status": "completed", "output": []},
+    ],
+)
+def test_provider_rejects_incomplete_or_malformed_answers(monkeypatch, data):
+    mock_http(monkeypatch, lambda request: httpx.Response(200, json=data))
+    with pytest.raises(DomainError) as error:
+        OpenAIProvider(Settings(_env_file=None, openai_api_key="test")).answer("q", [])
+    assert error.value.code == "invalid_answer"
+
+
+def test_abstention_has_no_claims_or_citations(api, fake_download):
+    prefix = imported(api)
+    provider = FixtureProvider()
+    provider.answer = lambda question, excerpts: ModelAnswer(
+        status="insufficient_context", claims=[]
+    )
+    api.app.dependency_overrides[provider_dependency] = lambda: provider
+    api.post(prefix + "/index", json={})
+    result = api.post(prefix + "/ask", json={"question": "How is billing implemented?"})
+    assert result.status_code == 200
+    assert result.json()["claims"] == result.json()["citations"] == []

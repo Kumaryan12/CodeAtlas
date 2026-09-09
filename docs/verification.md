@@ -133,3 +133,25 @@ Verified on 2026-09-08 using Node 26.0.0, npm 11.12.1, Python 3.14.7, Next.js 16
 - Backend tests emit two upstream deprecation warnings concerning Starlette/httpx and AnyIO. They are visible and do not fail the tests.
 
 This record describes local verification, not a production-readiness certification.
+
+## Milestone 3 — repository Q&A (2026-09-09)
+
+- **115 backend tests passed**, including real Alembic migration upgrade/downgrade and metadata comparison on SQLite; symbol-boundary chunking; exact line ranges including Unicode separators inside source strings; normalized cosine ranking; malformed/nonfinite/zero vectors; snapshot isolation; idempotent indexing; stale model detection; preservation after embedding failure; citation validation; abstention; request limits; provider authentication/rate-limit failures; incomplete output; and wire-format tests with mock HTTP responses.
+- **12 frontend tests passed**, covering existing explorer/graph behavior plus source-page boundaries and the proxy's method/path allowlist. ESLint, TypeScript, and the Next.js Webpack production build passed.
+- Ruff lint and formatting passed. `git diff --check` passed. No new package dependencies were introduced.
+- PostgreSQL migrated to `0003`; `alembic check` reported no pending model changes. A temporary, uniquely identified fixture exercised persisted indexing, a cited answer, successful replacement after an embedding-model change, and cascade cleanup against real PostgreSQL. This used an injected mock provider. Only that temporary fixture was removed; user snapshots were preserved.
+- Live Next.js/API HTTP checks passed: root page, index status through the frontend proxy, `ai_not_configured` response with the real same-origin header, rejection of foreign-origin questions, and an existing snapshot's dependency graph.
+- The API and production frontend were restarted locally on ports 8000 and 3000. An initial start command redundantly forwarded a hostname and failed; the repository's normal `npm start` command succeeded.
+- No server OpenAI key is configured. The evaluation CLI exits with a sanitized `ai_not_configured` message. **No live embeddings, generated answers, Recall@K/MRR result, or answer-faithfulness score has been verified.** Synthetic test vectors validate software mechanics only.
+- Browser runtime reports no available browser. Interactive visual/hydration/accessibility verification remains outstanding. HTTP responses and builds are not a replacement for browser verification.
+- The same two upstream Starlette/httpx and AnyIO deprecation warnings remain; they do not fail tests.
+
+### Manual verification
+
+1. Preserve `.env`, add `CODEATLAS_OPENAI_API_KEY`, and restart the API. Run migration `upgrade head` when updating an existing checkout.
+2. Open a ready/partial repository snapshot and select **Ask**. Without a key, confirm that setup guidance appears and question submission is disabled.
+3. With a key configured, build the semantic index. Verify the excerpt count and any skipped oversized-line warning; a second index POST should reuse the index.
+4. Ask a question naming a known behavior or function. Open a citation, verify its line range against the source, then return to Ask and confirm the answer remains.
+5. Ask about behavior absent from the repository. Inspect evidence and abstention behavior; valid references alone are not proof that an answer is faithful.
+6. Change `CODEATLAS_EMBEDDING_MODEL`, restart, and verify the index is marked stale and requires rebuilding. Failed rebuilds should preserve the previous model's complete index.
+7. Run `apps/api/.venv/bin/python -m codeatlas.retrieval.evaluate --live` and retain the JSON results as the initial real-embedding baseline. Review answers manually before claiming Q&A quality.

@@ -82,8 +82,25 @@ The resolver returns local indexed file edges only. JS/TS extension and index ca
 
 Graph results may change when resolver logic improves even though snapshot source is immutable. Add resolver versioning/cache keys if graphs become persisted evaluation artifacts. No LLM, call graph or sandbox execution was introduced.
 
-## Proposed Milestone 3
+## Milestone 3: grounded Q&A
 
-Add grounded repository Q&A with code-symbol retrieval, a swappable embedding/LLM provider boundary, and source citations. Start with a small retrieval evaluation fixture and known supporting symbols; introduce embedding persistence and migrations only as needed. Keep model configuration in environment variables, and expose missing-configuration errors. Do not send whole repositories to a model or add write/execution tools.
+Migration `0003` introduces `semantic_indexes` (one complete index per snapshot) and `embedding_chunks` (source range, symbol metadata, excerpt, and JSON vector). Source snapshots and parser symbols remain the system of record. An index fingerprint includes provider, embedding model, and chunker version. Foreign keys scope chunks to their snapshot and file and cascade on deletion.
 
-Milestone 3 begins only after the user's next instruction.
+| Choice | Reason and tradeoff | Interview question |
+| --- | --- | --- |
+| Symbol-first disjoint excerpts | Innermost functions/methods retain their bodies; enclosing declarations and remaining module lines stay searchable without duplicating entire classes. Very large symbols split at line boundaries. | Why are fixed character chunks poor for code? |
+| JSON vectors + exact cosine search in PostgreSQL | Reuses existing infrastructure and works with SQLite tests. O(chunks × dimensions) search is acceptable only for the explicit 2,000-chunk cap; use pgvector and indexed similarity search when scale justifies it. | When would you introduce a vector index? |
+| Atomic index replacement | Network calls finish before replacing persisted vectors. Failure preserves the old complete index; retrying may repeat billable embedding calls because partial batches are not cached. | How do you avoid exposing partially indexed data? |
+| Provider Protocol + one OpenAI adapter | `embed` and `answer` are injected into services; HTTP wire formats are confined to `ai/provider.py`. Adding a vendor also requires extending configuration and the index fingerprint/status wiring. No SDK dependency was necessary because httpx was already installed. | Which parts of a provider swap invalidate stored vectors? |
+| Structured claims with excerpt IDs | Server-owned file IDs and line ranges prevent model-invented clickable references. They cannot establish semantic entailment or fully eliminate prompt injection. | Why does valid JSON not guarantee a grounded answer? |
+| Independent questions and transient UI turns | Avoids prematurely adding conversation/message tables or mixing stale prior answers into retrieval. Follow-up pronouns are not resolved; persistent multi-turn state is deferred. | How would conversation history change retrieval? |
+
+The model receives at most six excerpts, with no tools, and cannot write or execute code. Prompts explicitly mark repository text and questions as untrusted. Provider response bodies are bounded to 2 MB, with 5-second connection/10-second I/O timeouts and a 30-second checked response deadline (an in-flight read can extend it). HTTP errors are sanitized. Application logs record event, snapshot, status, and duration, not prompts, source, or API keys. The model's output is rendered as text, not HTML or executable Markdown.
+
+A process lock bounds AI concurrency. This is intentionally a local single-worker application; a production deployment needs authentication, distributed job coordination, cancellation, quotas, and durable progress. Indexing currently returns once complete; it does not claim percentage progress. Parser warnings and oversized-line omissions remain visible. Module-level source is indexed, but non-source configuration and documentation are not yet included.
+
+Evaluation fixture questions test known supporting symbols. The opt-in CLI computes real-provider Recall@1/3 and MRR@1/3; offline tests verify mechanics with synthetic vectors. The current environment has no configured key, so semantic quality and answer faithfulness are unmeasured. Further evaluation should add negative questions, larger held-out repositories, human evidence review, and model/token usage accounting.
+
+## Proposed Milestone 4
+
+Improve retrieval with exact symbol matching, keyword search, and bounded graph expansion. Display retrieved candidates and scores, and compare against this semantic baseline on held-out questions. Calibrate relevance/abstention behavior using actual provider outputs. Begin only after the user's next instruction.
