@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAllowedOrigin } from "@/lib/proxy-policy";
 
 export const dynamic = "force-dynamic";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -21,7 +22,7 @@ async function proxy(request: NextRequest, context: Context) {
   let body: string | undefined;
   if (request.method === "POST") {
     const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) {
+    if (!isAllowedOrigin(origin, request.headers.get("host"), request.nextUrl.protocol)) {
       return NextResponse.json({ error: { code: "invalid_origin", message: "Cross-origin imports are not allowed." } }, { status: 403 });
     }
     if (!request.headers.get("content-type")?.startsWith("application/json")) {

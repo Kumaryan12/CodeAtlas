@@ -3,9 +3,10 @@ import tempfile
 import time
 from collections import Counter
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
-from sqlalchemy import update
+from sqlalchemy import insert, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -57,23 +58,31 @@ def import_repository(session: Session, url: str, settings: Settings) -> Reposit
         repository.languages = dict(Counter(file.language for file in result.files))
         repository.skipped = result.skipped
         repository.status = "partial" if repository.warning_count else "ready"
+        file_rows = []
+        symbol_rows = []
         for file in result.files:
-            record = RepositoryFile(
-                repository_id=repository.id,
-                path=file.path,
-                language=file.language,
-                size_bytes=file.size_bytes,
-                source=file.source,
-                warning=file.parsed.warning,
-                imports=file.parsed.imports,
-                symbol_count=len(file.parsed.symbols),
+            file_id = str(uuid4())
+            file_rows.append(
+                {
+                    "id": file_id,
+                    "repository_id": repository.id,
+                    "path": file.path,
+                    "language": file.language,
+                    "size_bytes": file.size_bytes,
+                    "source": file.source,
+                    "warning": file.parsed.warning,
+                    "imports": file.parsed.imports,
+                    "symbol_count": len(file.parsed.symbols),
+                }
             )
-            session.add(record)
-            session.flush()
-            # Symbols arrive parent-first. Insert parents before self-FK dependents.
-            for symbol in file.parsed.symbols:
-                session.add(CodeSymbol(file_id=record.id, **symbol.model_dump()))
-            session.flush()
+            # Preserve parent-first traversal order for the symbol self-reference.
+            symbol_rows.extend(
+                {"file_id": file_id, **symbol.model_dump()} for symbol in file.parsed.symbols
+            )
+        if file_rows:
+            session.execute(insert(RepositoryFile), file_rows)
+        if symbol_rows:
+            session.execute(insert(CodeSymbol), symbol_rows)
         session.commit()
         logger.info(
             "repository_imported",

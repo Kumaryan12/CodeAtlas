@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isAllowedOrigin } from "../src/lib/proxy-policy.ts";
 import { buildFileTree } from "../src/lib/file-tree.ts";
 import { highlightSource } from "../src/lib/highlight.ts";
 import { fetchFiles, request } from "../src/lib/repositories.ts";
@@ -42,4 +43,12 @@ test("file loader follows pagination instead of dropping files after the first p
 test("client surfaces structured API failures", async (context) => {
   context.mock.method(globalThis, "fetch", async () => Response.json({ error: { message: "Database unavailable" } }, { status: 503 }));
   await assert.rejects(request(""), /Database unavailable/);
+});
+
+test("origin guard accepts the browser's host, including loopback IP, and rejects foreign origins", () => {
+  assert.equal(isAllowedOrigin("http://127.0.0.1:3000", "127.0.0.1:3000", "http:"), true);
+  assert.equal(isAllowedOrigin("http://localhost:3000", "localhost:3000", "http:"), true);
+  assert.equal(isAllowedOrigin("https://evil.example", "127.0.0.1:3000", "http:"), false);
+  assert.equal(isAllowedOrigin("http://127.0.0.1:3000.evil.example", "127.0.0.1:3000", "http:"), false);
+  assert.equal(isAllowedOrigin("null", "127.0.0.1:3000", "http:"), false);
 });
