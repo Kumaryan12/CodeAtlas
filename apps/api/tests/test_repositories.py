@@ -218,3 +218,37 @@ def test_failed_snapshot_has_no_graph(api):
         api.post("/api/repositories", json={"url": "https://github.com/a/b"})
     repo = api.get("/api/repositories").json()["items"][0]
     assert api.get(f"/api/repositories/{repo['id']}/graph").status_code == 409
+
+
+def test_persisted_graph_resolves_python_and_captured_aliases(api, monkeypatch):
+    def download(self, repository, workspace):
+        make_archive(
+            workspace / "repository.tar.gz",
+            {
+                "repo/pkg/__init__.py": b"",
+                "repo/pkg/a.py": b"from . import b\ndef run(): pass",
+                "repo/pkg/b.py": b"from .a import run",
+                "repo/web/tsconfig.json": b'{"compilerOptions":{"paths":{"@/*":["src/*"]}}}',
+                "repo/web/src/a.ts": b"import '@/b';",
+                "repo/web/src/b.ts": b"export const value = 1;",
+            },
+        )
+        return Snapshot(repository.full_name, repository.url, "main", "b" * 40, None)
+
+    monkeypatch.setattr("codeatlas.services.import_repository.GitHubClient.download", download)
+    repo = api.post("/api/repositories", json={"url": "https://github.com/example/graph"}).json()
+    graph = api.get(f"/api/repositories/{repo['id']}/graph").json()
+    paths = {node["id"]: node["file"] for node in graph["nodes"]}
+    pairs = {(paths[edge["source"]], paths[edge["target"]]) for edge in graph["edges"]}
+    assert ("web/src/a.ts", "web/src/b.ts") in pairs
+    assert ("pkg/a.py", "pkg/b.py") in pairs
+    assert ("pkg/b.py", "pkg/a.py") in pairs
+    assert len(graph["cycles"]) == 1
+    assert {paths[node] for node in graph["cycles"][0]} == {"pkg/a.py", "pkg/b.py"}
+    assert not graph["unresolved"]
+    assert all(evidence["line"] == 1 for edge in graph["edges"] for evidence in edge["evidence"])
+    assert any(
+        evidence["resolution"] == "typescript_paths"
+        for edge in graph["edges"]
+        for evidence in edge["evidence"]
+    )

@@ -209,7 +209,7 @@ def scan_tar(archive: Path, limits: ScanLimits) -> ScanResult:
                 )
             )
             symbol_count += len(parsed.symbols)
-            import_count += len(parsed.import_references)
+            import_count += sum(1 + len(ref.names) for ref in parsed.import_references)
             if import_count > limits.max_imports:
                 raise DomainError(
                     "repository_too_large", "Repository has too many import statements.", 413

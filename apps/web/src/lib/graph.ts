@@ -1,0 +1,60 @@
+export type GraphNode = {
+  id: string; label: string; type: "file"; file: string; language: string;
+  symbol_count: number; warning: string | null;
+};
+export type GraphEdge = {
+  id: string; source: string; target: string; relationship: "imports"; in_cycle: boolean;
+  evidence: { specifier: string; line: number | null; kind: string; resolution: string }[];
+};
+export type DependencyGraph = {
+  repository_id: string; nodes: GraphNode[]; edges: GraphEdge[];
+  unresolved: { source: string; specifier: string; line: number | null; reason: string; candidates: string[] }[];
+  cycles: string[][]; notes: string[]; legacy_files: number;
+};
+
+export function visibleGraph(graph: DependencyGraph, query: string, language: string, focus: string | null, limit = 200) {
+  const neighbors = new Set<string>(focus ? [focus] : []);
+  if (focus) for (const edge of graph.edges) {
+    if (edge.source === focus) neighbors.add(edge.target);
+    if (edge.target === focus) neighbors.add(edge.source);
+  }
+  const matching = graph.nodes.filter((node) =>
+    node.file.toLowerCase().includes(query.toLowerCase()) && (!language || node.language === language) &&
+    (!focus || neighbors.has(node.id)));
+  matching.sort((a, b) => Number(b.id === focus) - Number(a.id === focus) || a.file.localeCompare(b.file));
+  const nodes = matching.slice(0, limit);
+  const ids = new Set(nodes.map((node) => node.id));
+  return { nodes, edges: graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)), total: matching.length };
+}
+
+export function layoutGraph(nodes: GraphNode[], edges: GraphEdge[], cycles: string[][]) {
+  const group = new Map(nodes.map((node) => [node.id, node.id]));
+  cycles.forEach((members, index) => members.forEach((id) => { if (group.has(id)) group.set(id, `cycle-${index}`); }));
+  const groups = [...new Set(group.values())].sort();
+  const next = new Map(groups.map((id) => [id, new Set<string>()]));
+  const degree = new Map(groups.map((id) => [id, 0]));
+  const rank = new Map(groups.map((id) => [id, 0]));
+  for (const edge of edges) {
+    const source = group.get(edge.source), target = group.get(edge.target);
+    if (source && target && source !== target && !next.get(source)!.has(target)) {
+      next.get(source)!.add(target);
+      degree.set(target, degree.get(target)! + 1);
+    }
+  }
+  const queue = groups.filter((id) => degree.get(id) === 0);
+  for (let index = 0; index < queue.length; index++) {
+    const source = queue[index];
+    for (const target of next.get(source)!) {
+      rank.set(target, Math.max(rank.get(target)!, rank.get(source)! + 1));
+      degree.set(target, degree.get(target)! - 1);
+      if (degree.get(target) === 0) queue.push(target);
+    }
+  }
+  const rows = new Map<number, number>();
+  return [...nodes].sort((a, b) => a.file.localeCompare(b.file)).map((node) => {
+    const column = rank.get(group.get(node.id)!) ?? 0;
+    const row = rows.get(column) ?? 0;
+    rows.set(column, row + 1);
+    return { id: node.id, position: { x: column * 310, y: row * 100 } };
+  });
+}

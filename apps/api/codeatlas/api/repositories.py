@@ -87,6 +87,7 @@ def list_files(
         .options(
             defer(RepositoryFile.source, raiseload=True),
             defer(RepositoryFile.imports, raiseload=True),
+            defer(RepositoryFile.import_references, raiseload=True),
         )
         .where(RepositoryFile.repository_id == repository.id)
         .order_by(RepositoryFile.path)

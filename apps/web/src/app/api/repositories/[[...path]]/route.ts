@@ -10,7 +10,7 @@ function allowedPath(parts: string[]) {
   if (parts.length === 0) return true;
   if (!uuid.test(parts[0])) return false;
   if (parts.length === 1) return true;
-  if (parts.length === 2) return ["files", "symbols"].includes(parts[1]);
+  if (parts.length === 2) return ["files", "symbols", "graph"].includes(parts[1]);
   return parts.length === 3 && parts[1] === "files" && uuid.test(parts[2]);
 }
 

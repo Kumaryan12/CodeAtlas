@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchFiles, request, type FileDetail, type Repository, type RepositoryFile } from "@/lib/repositories";
 import { FileTree } from "@/components/file-tree";
+import { DependencyGraphView } from "@/components/dependency-graph";
 import { CodeViewer } from "@/components/code-viewer";
 
 function FileView({ repositoryId, fileId }: { repositoryId: string; fileId: string }) {
@@ -21,6 +22,7 @@ function FileView({ repositoryId, fileId }: { repositoryId: string; fileId: stri
 }
 
 export function RepositoryExplorer({ repository }: { repository: Repository }) {
+  const [view, setView] = useState<"code" | "architecture">("code");
   const [files, setFiles] = useState<RepositoryFile[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -48,7 +50,12 @@ export function RepositoryExplorer({ repository }: { repository: Repository }) {
       {Object.entries(repository.skipped).map(([reason, count]) => <span key={reason}>{reason.replaceAll("_", " ")}: {count}</span>)}
       <p>Python, JavaScript, and TypeScript source only. Language percentages are based on indexed file counts.</p>
     </details>
-    {!files.length ? <div className="empty-state"><h2>No supported source files</h2><p className="muted">This snapshot contains no eligible Python, JavaScript, or TypeScript files. Review scan details above.</p></div>
+    <div className="workspace-tabs" aria-label="Repository view">
+      <button aria-pressed={view === "code"} onClick={() => setView("code")}>Code</button>
+      <button aria-pressed={view === "architecture"} onClick={() => setView("architecture")}>Architecture</button>
+    </div>
+    {view === "architecture" ? <DependencyGraphView repositoryId={repository.id} activeId={activeId} onSelect={setActiveId}
+      onOpenCode={(id) => { setActiveId(id); setView("code"); }} /> : !files.length ? <div className="empty-state"><h2>No supported source files</h2><p className="muted">This snapshot contains no eligible Python, JavaScript, or TypeScript files. Review scan details above.</p></div>
       : <div className="explorer-grid"><FileTree files={files} activeId={activeId} onSelect={setActiveId} />
         {activeId && <FileView key={activeId} repositoryId={repository.id} fileId={activeId} />}
       </div>}

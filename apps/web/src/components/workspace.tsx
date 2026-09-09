@@ -118,7 +118,7 @@ export function Workspace() {
           <p className="eyebrow accent">EVERY CONNECTION STARTS SOMEWHERE</p><h2 id="empty-title">Get to know your codebase.</h2>
           <p className="empty-copy">Browse source. Find functions. Understand the structure.<br/>Import a repository above to build your first snapshot.</p>
         </section>}
-        <footer><span>CODEATLAS / DETERMINISTIC SOURCE ANALYSIS</span><span>Dependency graphs arrive in Milestone 2</span></footer>
+        <footer><span>CODEATLAS / DETERMINISTIC SOURCE ANALYSIS</span><span>Source explorer + static dependency graph</span></footer>
       </main>
     </div>
   </div>;

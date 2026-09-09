@@ -72,7 +72,7 @@ def build_graph(
             legacy_files += 1
             refs = [ImportReference(specifier=value, kind="legacy") for value in file.imports]
         for ref in refs:
-            observations += 1
+            observations += 1 + len(ref.names)
             if observations > 50_000:
                 raise DomainError(
                     "graph_too_large", "Graph exceeds 50,000 import observations.", 413
