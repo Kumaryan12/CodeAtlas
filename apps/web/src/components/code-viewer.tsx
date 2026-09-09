@@ -2,13 +2,16 @@ import { useMemo, useState } from "react";
 import type { FileDetail, SourceSymbol } from "@/lib/repositories";
 import { highlightSource } from "@/lib/highlight";
 
+import { citationPage, type Citation } from "@/lib/qa";
+
 const LINES_PER_PAGE = 200;
 
-export function CodeViewer({ file }: { file: FileDetail }) {
-  const [page, setPage] = useState(0);
+export function CodeViewer({ file, citation = null }: { file: FileDetail; citation?: Citation | null }) {
+  const [page, setPage] = useState(citationPage(citation?.start_line ?? 1));
   const [selected, setSelected] = useState<SourceSymbol | null>(null);
   const [symbolQuery, setSymbolQuery] = useState("");
   const lines = useMemo(() => file.source.split(/\r?\n/), [file.source]);
+  const range = selected ?? citation;
   const start = page * LINES_PER_PAGE;
   const visible = lines.slice(start, start + LINES_PER_PAGE);
   const code = visible.join("\n");
@@ -24,10 +27,10 @@ export function CodeViewer({ file }: { file: FileDetail }) {
     <section className="code-panel" aria-label={`Source code: ${file.path}`}>
       <div className="panel-heading code-heading"><span title={file.path}>{file.path}</span><span>{file.language}</span></div>
       {file.warning && <p className="notice warning" role="status">{file.warning}</p>}
-      {selected && <div className="location-label">{selected.name} · lines {selected.start_line}–{selected.end_line}</div>}
+      {range && <div className="location-label">{selected?.name ?? "Cited excerpt"} · lines {range.start_line}–{range.end_line}</div>}
       <div className="code-scroll" tabIndex={0} aria-label="Scrollable source code">
         <div className="line-numbers" aria-hidden="true">{visible.map((_, index) => <span key={index}
-          className={selected && start + index + 1 >= selected.start_line && start + index + 1 <= selected.end_line ? "highlighted-line" : ""}>{start + index + 1}</span>)}</div>
+          className={range && start + index + 1 >= range.start_line && start + index + 1 <= range.end_line ? "highlighted-line" : ""}>{start + index + 1}</span>)}</div>
         <pre><code>{highlighted === null ? code : <span dangerouslySetInnerHTML={{ __html: highlighted }} />}</code></pre>
       </div>
       <div className="code-pagination"><span>Lines {start + 1}–{Math.min(start + LINES_PER_PAGE, lines.length)} of {lines.length}</span>

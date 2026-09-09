@@ -1,32 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAllowedOrigin } from "@/lib/proxy-policy";
+import { isAllowedOrigin, allowedRepositoryPath } from "@/lib/proxy-policy";
 
 export const dynamic = "force-dynamic";
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 type Context = { params: Promise<{ path?: string[] }> };
-
-function allowedPath(parts: string[]) {
-  if (parts.length === 0) return true;
-  if (!uuid.test(parts[0])) return false;
-  if (parts.length === 1) return true;
-  if (parts.length === 2) return ["files", "symbols", "graph"].includes(parts[1]);
-  return parts.length === 3 && parts[1] === "files" && uuid.test(parts[2]);
-}
 
 async function proxy(request: NextRequest, context: Context) {
   const parts = (await context.params).path ?? [];
-  if (!allowedPath(parts) || (request.method === "POST" && parts.length > 0)) {
+  if (!allowedRepositoryPath(parts, request.method)) {
     return NextResponse.json({ error: { code: "not_found", message: "Unknown repository route." } }, { status: 404 });
   }
   let body: string | undefined;
   if (request.method === "POST") {
     const origin = request.headers.get("origin");
     if (!isAllowedOrigin(origin, request.headers.get("host"), request.nextUrl.protocol)) {
-      return NextResponse.json({ error: { code: "invalid_origin", message: "Cross-origin imports are not allowed." } }, { status: 403 });
+      return NextResponse.json({ error: { code: "invalid_origin", message: "Cross-origin requests are not allowed." } }, { status: 403 });
     }
     if (!request.headers.get("content-type")?.startsWith("application/json")) {
-      return NextResponse.json({ error: { code: "invalid_request", message: "Send JSON with a repository URL." } }, { status: 415 });
+      return NextResponse.json({ error: { code: "invalid_request", message: "Send an application/json request." } }, { status: 415 });
     }
     const reader = request.body?.getReader();
     const chunks: Uint8Array[] = [];
@@ -38,7 +28,7 @@ async function proxy(request: NextRequest, context: Context) {
         size += value.byteLength;
         if (size > 4096) {
           await reader.cancel();
-          return NextResponse.json({ error: { code: "request_too_large", message: "Import request is too large." } }, { status: 413 });
+          return NextResponse.json({ error: { code: "request_too_large", message: "Request is too large." } }, { status: 413 });
         }
         chunks.push(value);
       }
@@ -60,7 +50,7 @@ async function proxy(request: NextRequest, context: Context) {
   } catch {
     return NextResponse.json({ error: {
       code: "api_unavailable",
-      message: "The API did not respond. Refresh the repository list before retrying; an import may still be running.",
+      message: "The API did not respond. Refresh status before retrying; the operation may still be running.",
     } }, { status: 503 });
   }
 }

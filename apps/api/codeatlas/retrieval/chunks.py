@@ -25,6 +25,7 @@ class Chunk:
 
     def embedding_text(self) -> str:
         header = f"{self.path} | {self.language} | {self.kind} {(self.symbol or '')[:200]}"
+        header = header.encode("utf-8")[:1000].decode("utf-8", errors="ignore")
         return f"{header}\n{self.source}"
 
 
@@ -59,7 +60,7 @@ def chunk_file(file: RepositoryFile, symbols: list[CodeSymbol]) -> tuple[list[Ch
                     file.id,
                     file.path,
                     file.language,
-                    symbol,
+                    symbol[:200] if symbol else None,
                     kind,
                     start,
                     end,

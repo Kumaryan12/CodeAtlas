@@ -1,0 +1,8 @@
+[
+  {"question": "Where are incorrect sign-in credentials rejected?", "expected": ["auth.py:login"]},
+  {"question": "How is a password checked against its stored hash?", "expected": ["auth.py:verify_password"]},
+  {"question": "What prevents ordering more items than are available?", "expected": ["catalog.py:reserve_stock"]},
+  {"question": "Where is a percentage discount validated and applied?", "expected": ["catalog.py:apply_discount"]},
+  {"question": "Which code retries a task after a connection failure?", "expected": ["jobs.py:retry_job"]},
+  {"question": "How are old expired sessions removed?", "expected": ["jobs.py:delete_expired_sessions"]}
+]

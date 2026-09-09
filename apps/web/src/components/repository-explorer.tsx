@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { fetchFiles, request, type FileDetail, type Repository, type RepositoryFile } from "@/lib/repositories";
 import { FileTree } from "@/components/file-tree";
 import { DependencyGraphView } from "@/components/dependency-graph";
+import { RepositoryAsk } from "@/components/repository-ask";
+import type { Citation } from "@/lib/qa";
 import { CodeViewer } from "@/components/code-viewer";
 
-function FileView({ repositoryId, fileId }: { repositoryId: string; fileId: string }) {
+function FileView({ repositoryId, fileId, citation }: { repositoryId: string; fileId: string; citation: Citation | null }) {
   const [file, setFile] = useState<FileDetail | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -18,11 +20,13 @@ function FileView({ repositoryId, fileId }: { repositoryId: string; fileId: stri
   }, [repositoryId, fileId]);
   if (error) return <p className="notice error" role="alert">{error}</p>;
   if (!file) return <p className="panel-empty" role="status">Loading source…</p>;
-  return <CodeViewer key={file.id} file={file} />;
+  return <CodeViewer key={`${file.id}:${citation?.start_line ?? 0}`} file={file} citation={citation} />;
 }
 
 export function RepositoryExplorer({ repository }: { repository: Repository }) {
-  const [view, setView] = useState<"code" | "architecture">("code");
+  const [view, setView] = useState<"code" | "architecture" | "ask">("code");
+  const [citation, setCitation] = useState<Citation | null>(null);
+  const [askOpened, setAskOpened] = useState(false);
   const [files, setFiles] = useState<RepositoryFile[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -53,11 +57,13 @@ export function RepositoryExplorer({ repository }: { repository: Repository }) {
     <div className="workspace-tabs" aria-label="Repository view">
       <button aria-pressed={view === "code"} onClick={() => setView("code")}>Code</button>
       <button aria-pressed={view === "architecture"} onClick={() => setView("architecture")}>Architecture</button>
+      <button aria-pressed={view === "ask"} onClick={() => { setAskOpened(true); setView("ask"); }}>Ask</button>
     </div>
-    {view === "architecture" ? <DependencyGraphView repositoryId={repository.id} activeId={activeId} onSelect={setActiveId}
-      onOpenCode={(id) => { setActiveId(id); setView("code"); }} /> : !files.length ? <div className="empty-state"><h2>No supported source files</h2><p className="muted">This snapshot contains no eligible Python, JavaScript, or TypeScript files. Review scan details above.</p></div>
-      : <div className="explorer-grid"><FileTree files={files} activeId={activeId} onSelect={setActiveId} />
-        {activeId && <FileView key={activeId} repositoryId={repository.id} fileId={activeId} />}
+    {askOpened && <div hidden={view !== "ask"}><RepositoryAsk repositoryId={repository.id} onOpenSource={(source) => { setCitation(source); setActiveId(source.file_id); setView("code"); }} /></div>}
+    {view === "ask" ? null : view === "architecture" ? <DependencyGraphView repositoryId={repository.id} activeId={activeId} onSelect={setActiveId}
+      onOpenCode={(id) => { setCitation(null); setActiveId(id); setView("code"); }} /> : !files.length ? <div className="empty-state"><h2>No supported source files</h2><p className="muted">This snapshot contains no eligible Python, JavaScript, or TypeScript files. Review scan details above.</p></div>
+      : <div className="explorer-grid"><FileTree files={files} activeId={activeId} onSelect={(id) => { setCitation(null); setActiveId(id); }} />
+        {activeId && <FileView key={activeId} repositoryId={repository.id} fileId={activeId} citation={citation?.file_id === activeId ? citation : null} />}
       </div>}
   </>;
 }

@@ -60,8 +60,11 @@ class OpenAIProvider:
                 "Set CODEATLAS_OPENAI_API_KEY on the API server and restart it.",
                 503,
             )
+        started = time.monotonic()
         try:
-            with httpx.Client(timeout=30, trust_env=False, follow_redirects=False) as client:
+            with httpx.Client(
+                timeout=httpx.Timeout(10, connect=5), trust_env=False, follow_redirects=False
+            ) as client:
                 with client.stream(
                     "POST",
                     f"https://api.openai.com/v1/{route}",
@@ -82,9 +85,8 @@ class OpenAIProvider:
                         )
                     response.raise_for_status()
                     body = bytearray()
-                    start = time.monotonic()
                     for part in response.iter_bytes():
-                        if time.monotonic() - start > 30:
+                        if time.monotonic() - started > 30:
                             raise httpx.ReadTimeout("Response deadline exceeded")
                         if len(body) + len(part) > 2_000_000:
                             raise DomainError(
@@ -116,7 +118,7 @@ class OpenAIProvider:
             if [row["index"] for row in rows] != list(range(len(texts))):
                 raise ValueError("Unexpected embedding indexes")
             return [row["embedding"] for row in rows]
-        except (KeyError, TypeError, ValueError) as exc:
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
             raise DomainError(
                 "invalid_embedding", "Provider returned malformed embeddings.", 502
             ) from exc
@@ -151,7 +153,7 @@ class OpenAIProvider:
                 if part.get("type") == "output_text"
             ]
             return ModelAnswer.model_validate_json("".join(texts))
-        except (KeyError, TypeError, ValueError, ValidationError) as exc:
+        except (AttributeError, KeyError, TypeError, ValueError, ValidationError) as exc:
             raise DomainError(
                 "invalid_answer",
                 "The model did not return a complete grounded answer. Try a narrower question.",
