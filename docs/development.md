@@ -101,6 +101,25 @@ A process lock bounds AI concurrency. This is intentionally a local single-worke
 
 Evaluation fixture questions test known supporting symbols. The opt-in CLI computes real-provider Recall@1/3 and MRR@1/3; offline tests verify mechanics with synthetic vectors. The current environment has no configured key, so semantic quality and answer faithfulness are unmeasured. Further evaluation should add negative questions, larger held-out repositories, human evidence review, and model/token usage accounting.
 
-## Proposed Milestone 4
+## Milestone 4: hybrid retrieval
 
-Improve retrieval with exact symbol matching, keyword search, and bounded graph expansion. Display retrieved candidates and scores, and compare against this semantic baseline on held-out questions. Calibrate relevance/abstention behavior using actual provider outputs. Begin only after the user's next instruction.
+No database migration or provider change was needed. The stored chunk/vector schema supplies the new retrieval signals. `retrieval/hybrid.py` is a pure ranking function shared by the Q&A service and evaluator; `services/dependency_graph.py` loads the same graph used by the architecture endpoint. Both `/ask` and `/retrieve` use the same context-selection function. The default strategy is hybrid, with a semantic-only baseline available in the UI/API.
+
+| Choice | Reason and tradeoff | Interview question |
+| --- | --- | --- |
+| BM25 + exact symbols/paths | Complements embeddings for identifiers and concrete code vocabulary. Tokenization preserves full identifiers plus snake/camel parts and uses a small English stop-word list; it is not multilingual query understanding. | Why do embeddings miss exact code identifiers? |
+| Weighted reciprocal-rank fusion | Combines rankings without adding incompatible raw score scales. Formula: sum of channel weight / (60 + one-based rank), over top 50 per channel. Semantic and BM25 weights are 1; the explicit-match channel weight is 2. These are initial heuristics, not tuned confidence estimates. | Why use rank fusion instead of summing cosine and BM25? |
+| Explicit-match channel | Whole symbol match scores 2 and whole path match scores 1 before channel ranking; no substring symbol match. Matching is case-insensitive and bounded to stored symbol labels. Duplicate symbols still require path/context disambiguation. | How do you distinguish two functions with the same name? |
+| Four ranked seeds + two expansion slots | Preserves core retrieval while adding at most two new adjacent files from the top two seed excerpts. One excerpt per new file, one hop, no recursion. Neighbors outside the channel top 50 can still be selected. Import adjacency can introduce irrelevant context. | How do you prevent graph expansion from overwhelming the prompt? |
+| Preview endpoint | One embedding call, no answer-model call. Scores, selection reason, via-file provenance, and exact source ranges are visible before asking. Preview does not cache or authorize a later answer call; Ask retrieves afresh. | How do you debug a wrong RAG answer? |
+| Recompute bounded lexical scores | Uses the existing 2 MB / 2,000-chunk index cap without new search infrastructure. For larger repositories, move term statistics/postings to persistent indexes and add pgvector as justified by measured latency. | When should an in-memory prototype become an indexed search service? |
+
+Graph lookup loads metadata without source. Only resolved edges within the selected snapshot participate. Legacy and unsupported-resolution notes remain visible; oversized graphs skip expansion and explicitly report it. Scores are included in diagnostics but not sent to the answer model, so numeric ranking values do not masquerade as evidence.
+
+The evaluation fixture now contains 12 questions, 14 chunks, and two resolved file-import edges. `--offline` exercises actual lexical retrieval without provider calls; `--live` embeds fixture chunks and questions once and compares semantic, hybrid, and hybrid-plus-graph under the same six-excerpt budget. Metrics are calculated on expected file/symbol labels and include per-question rankings. The recorded offline experiment yielded Recall@6 0.9167 and MRR@6 0.8125, unchanged by graph expansion. This small curated set does not demonstrate generalization. Synthetic-vector tests separately verify exact-match recovery against misleading semantic rankings and bounded expansion under cycles/high candidate counts.
+
+There is no calibrated relevance threshold or evidence-entailment check. Live semantic/answer-quality evaluation is still unavailable without a configured key. Do not infer improved answer quality from successful unit tests or valid citation IDs.
+
+## Proposed Milestone 5
+
+Add an explicitly read-only investigation agent with bounded tools such as list files, search code, read source, and inspect dependencies, plus a visible execution trace. Configure the provider and run the live retrieval comparison before relying on agent output. Do not add editing, shell execution, or pull-request tools yet. Begin only after the user's next instruction.

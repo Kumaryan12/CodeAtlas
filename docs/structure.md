@@ -45,6 +45,7 @@ CodeAtlas/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── chunks.py
 │   │   │   │   ├── evaluate.py
+│   │   │   │   ├── hybrid.py
 │   │   │   │   └── vectors.py
 │   │   │   ├── schemas/
 │   │   │   │   ├── __init__.py
@@ -53,6 +54,7 @@ CodeAtlas/
 │   │   │   │   └── repository.py
 │   │   │   ├── services/
 │   │   │   │   ├── __init__.py
+│   │   │   │   ├── dependency_graph.py
 │   │   │   │   ├── import_repository.py
 │   │   │   │   └── qa.py
 │   │   │   ├── __init__.py
@@ -61,7 +63,9 @@ CodeAtlas/
 │   │   │   ├── fixture/
 │   │   │   │   ├── auth.py
 │   │   │   │   ├── catalog.py
-│   │   │   │   └── jobs.py
+│   │   │   │   ├── jobs.py
+│   │   │   │   ├── orders.py
+│   │   │   │   └── routes.py
 │   │   │   └── questions.json
 │   │   ├── migrations/
 │   │   │   ├── versions/
@@ -83,7 +87,8 @@ CodeAtlas/
 │   │   │   ├── test_health.py
 │   │   │   ├── test_parsers.py
 │   │   │   ├── test_qa.py
-│   │   │   └── test_repositories.py
+│   │   │   ├── test_repositories.py
+│   │   │   └── test_retrieval.py
 │   │   ├── alembic.ini
 │   │   ├── pyproject.toml
 │   │   └── requirements-dev.lock
@@ -106,6 +111,7 @@ CodeAtlas/
 │       │   │   ├── file-tree.tsx
 │       │   │   ├── repository-ask.tsx
 │       │   │   ├── repository-explorer.tsx
+│       │   │   ├── retrieval-diagnostics.tsx
 │       │   │   └── workspace.tsx
 │       │   └── lib/
 │       │       ├── file-tree.ts
@@ -126,6 +132,7 @@ CodeAtlas/
 │       └── tsconfig.json
 ├── docs/
 │   ├── development.md
+│   ├── evaluation-m4-offline.json
 │   ├── structure.md
 │   └── verification.md
 ├── .env.example

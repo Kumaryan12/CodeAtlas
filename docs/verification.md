@@ -155,3 +155,22 @@ This record describes local verification, not a production-readiness certificati
 5. Ask about behavior absent from the repository. Inspect evidence and abstention behavior; valid references alone are not proof that an answer is faithful.
 6. Change `CODEATLAS_EMBEDDING_MODEL`, restart, and verify the index is marked stale and requires rebuilding. Failed rebuilds should preserve the previous model's complete index.
 7. Run `apps/api/.venv/bin/python -m codeatlas.retrieval.evaluate --live` and retain the JSON results as the initial real-embedding baseline. Review answers manually before claiming Q&A quality.
+
+## Milestone 4 — hybrid retrieval and diagnostics (2026-09-09)
+
+- **128 backend tests passed**. New cases cover identifier/path matching, BM25, semantic-vs-hybrid recovery with synthetic vectors, deterministic ties, a 2,000-chunk collection, cycle-safe one-hop expansion, neighbors outside channel limits, preview without answer generation, preview/answer context parity, cross-snapshot isolation, invalid strategy/body limits, graph-limit fallback, JavaScript `$` identifiers, and comparison-harness mechanics. Existing ingestion, graph, citation, and migration tests pass.
+- **14 frontend tests passed**. ESLint, TypeScript, the Next.js Webpack production build, Ruff lint/format, and `git diff --check` passed. Preview route restrictions and score display are covered. No dependencies or migrations were added; PostgreSQL `alembic check` remains clean.
+- The 12-question offline experiment uses actual BM25 and explicit-match retrieval, with no embeddings or answer calls. It contains 14 chunks and two static import edges. Lexical Recall@1/3/6: **0.6111 / 0.8333 / 0.9167**. MRR@1/3/6: **0.7500 / 0.7917 / 0.8125**. Graph expansion produced the same aggregate metrics. Full per-question results: [evaluation-m4-offline.json](evaluation-m4-offline.json). These are curated fixture results, not a held-out benchmark or semantic-quality measurement.
+- Live HTTP checks through the production frontend passed for the new POST preview route (correct `index_required` error on an unindexed snapshot), GET rejection, existing graph route, same-origin missing-key handling, and foreign-origin rejection.
+- A temporary PostgreSQL fixture with an injected mock provider passed hybrid and semantic previews, exact-symbol diagnostics, answer citations/diagnostics, index replacement, and cascade cleanup. Only that unique test fixture was removed; existing user snapshots were preserved. The API and frontend run locally on ports 8000 and 3000.
+- **No live embedding comparison or answer-faithfulness evaluation was run:** the server has no configured OpenAI key. The live harness is implemented, but its results remain unmeasured. No calibrated relevance threshold or confidence score is claimed.
+- The browser runtime still reports an empty browser list. Visual interaction, hydration, keyboard navigation, and accessibility checks remain outstanding. The same two upstream Starlette/httpx and AnyIO deprecation warnings persist.
+
+### Manual verification
+
+1. Open a completed snapshot → **Ask**. Configure the server key and build an index if needed; existing Milestone 3 indexes can be reused.
+2. Enter an exact function name, choose **Semantic baseline**, and select **Preview context**. Expand **Retrieved context** and inspect the scores and file links.
+3. Repeat the same question with **Hybrid + dependencies**. Inspect keyword/exact-match signals and any rows marked **Dependency expansion**, including the adjacent file. Do not assume every question will improve.
+4. Click a source link and verify the selected line range. Return to Ask; the preview remains labeled with its original question/mode.
+5. Select **Ask** and compare the answer's citations with its own retrieved context. Preview uses only a query embedding; Ask makes a fresh retrieval and an answer-model call.
+6. Run `python -m codeatlas.retrieval.evaluate --live` using the API virtual environment and inspect all three modes on the same questions. Record regressions as well as improvements before tuning weights or adding agent behavior.

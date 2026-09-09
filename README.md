@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 3 — grounded repository Q&A.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. Autonomous engineering remains a future milestone.
+**Current milestone: 4 — hybrid retrieval and diagnostics.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. Autonomous engineering remains a future milestone.
 
 ## What works
 
@@ -12,7 +12,8 @@
 - PostgreSQL snapshot persistence with Alembic migrations, transactional bulk writes, and recorded import failures.
 - Repository selection, searchable file tree, syntax-highlighted code, symbol navigation, file statistics, and parser warnings.
 - React Flow architecture view with resolved imports, dependency inspection, cycle highlighting, filtering, and source navigation.
-- Symbol-first semantic indexing, snapshot-scoped retrieval, an AI provider interface, and an Ask view with clickable source citations.
+- Symbol-first semantic indexing, snapshot-scoped hybrid retrieval, an AI provider interface, and an Ask view with clickable source citations.
+- Semantic/keyword/exact-symbol rank fusion, bounded import expansion, context previews, and per-excerpt retrieval diagnostics.
 - Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
 ## Quick start
@@ -165,7 +166,8 @@ Repository code is never executed, imported, installed, or tested. Only the trus
 
 1. Add `CODEATLAS_OPENAI_API_KEY` to your existing root `.env` and restart the API. Do not put the key in browser code or a `NEXT_PUBLIC_` variable.
 2. Open a ready or partial snapshot at [localhost:3000](http://localhost:3000), select **Ask**, then **Build semantic index**. Existing snapshots work without reimporting.
-3. Ask a specific implementation question. Click a cited path to open its exact source range; return to Ask to retain the answer. Expand **Inspect supporting excerpts** to review the actual context.
+3. Choose **Hybrid + dependencies** or **Semantic baseline**. Use **Preview context** to inspect retrieval before generating an answer. Preview makes one query-embedding call and no answer-model call.
+4. Ask a specific implementation question. Click a cited path to open its exact source range; return to Ask to retain the answer. Expand **Inspect supporting excerpts** to review the actual context.
 
 Indexing sends eligible source excerpts to OpenAI's embedding endpoint and stores vectors locally. Answer generation sends the question and at most six retrieved excerpts; it does not send the entire repository. Usage may incur provider charges. The default models are `text-embedding-3-small` and `gpt-4.1-mini`, configurable through `CODEATLAS_EMBEDDING_MODEL` and `CODEATLAS_ANSWER_MODEL`. Changing the embedding model makes existing indexes stale and requires rebuilding; changing the answer model does not.
 
@@ -173,21 +175,36 @@ Indexing sends eligible source excerpts to OpenAI's embedding endpoint and store
 | --- | --- |
 | `GET /index` | Configuration availability and index state: not indexed, ready, or stale |
 | `POST /index` with `{}` | Build a complete index; reuse an index with the same fingerprint |
-| `POST /ask` with `{"question":"How does login work?"}` | Retrieve code and return claims with validated source references |
+| `POST /ask` with `{"question":"How does login work?","strategy":"hybrid"}` | Cited answer plus retrieval diagnostics |
+| `POST /retrieve` with the same question/strategy body | Preview up to six retrieved excerpts without generating an answer |
 
 Function/method/class boundaries guide chunks; uncovered declarations and module code remain searchable. Large ranges split at complete lines, with source excerpts capped at 6,000 UTF-8 bytes. Oversized lines are skipped and counted. Indexes are limited to 2,000 chunks and 2 MB of embedding input. Batches contain up to 16 excerpts. A failed rebuild preserves the previous complete index. Indexing starts no new batch after 90 seconds; the last in-flight request may take longer. Refresh status before retrying after a client timeout.
 
-There is one AI operation per API process; run one worker. Each question is independent, and the UI retains only the last 10 answers in memory. No conversation history is stored or sent. Models can still misinterpret evidence: citation IDs are checked against retrieved excerpts, but those checks do not prove that a claim is true. The model can return insufficient context. Retrieval has no calibrated relevance cutoff yet; semantic ranking alone may miss exact symbols or multi-file relationships.
+There is one AI operation per API process; run one worker. Each question is independent, and the UI retains only the last 10 answers in memory. No conversation history is stored or sent. Models can still misinterpret evidence: citation IDs are checked against retrieved excerpts, but those checks do not prove that a claim is true. The model can return insufficient context. Retrieval has no calibrated relevance cutoff yet; both modes can retrieve irrelevant excerpts. Dependency expansion follows static import adjacency, not runtime calls.
+
+### Hybrid retrieval and diagnostics
+
+Hybrid mode is the default; `strategy: "semantic"` retains cosine-only ranking for comparison. Keyword search uses BM25 over excerpt source, path, and symbol, splitting snake_case and camelCase identifiers. Exact symbol and full-path matches receive an additional ranking channel. Weighted reciprocal-rank fusion combines the top 50 results per channel without treating different score scales as comparable probabilities.
+
+Four of the six context slots retain the highest fused results. Up to two slots can add one excerpt per new file adjacent to the top two seed excerpts, following resolved imports in either direction. Expansion stops after one hop; unresolved imports never become edges. Empty expansion slots are filled from ranked results. Graph size limits skip expansion with a visible note. Existing semantic indexes can be reused; this milestone needs no migration or embedding rebuild.
+
+Expand **Retrieved context** below an answer or preview to see source locations, cosine similarity, keyword score, exact-match presence, fusion score, and dependency provenance. These describe selection, not answer confidence. Preview results are labeled with the submitted question and mode; a later Ask request runs retrieval again rather than trusting a stale preview.
 
 ### Retrieval evaluation
 
-Six questions with known supporting symbols live in [evaluation/questions.json](apps/api/evaluation/questions.json). With a configured key, run:
+Twelve curated questions cover known symbols and multi-file flows in [evaluation/questions.json](apps/api/evaluation/questions.json). They are a small regression fixture, not a held-out production benchmark.
 
 ```sh
+# Real lexical search with and without graph expansion; no key or network needed.
+apps/api/.venv/bin/python -m codeatlas.retrieval.evaluate --offline
+
+# With a configured key: reuse the same embeddings across three retrieval modes.
 apps/api/.venv/bin/python -m codeatlas.retrieval.evaluate --live
 ```
 
-This sends only the small evaluation fixture and its questions for real embeddings, and prints Recall@1/3, MRR@1/3, rankings, model, and elapsed time. It makes no answer-generation calls. Unit tests use synthetic vectors to verify ranking mechanics and metric calculations; they **do not measure semantic quality**. No live semantic or answer-faithfulness score is claimed yet. See [verification notes](docs/verification.md).
+The live comparison reports semantic-only, hybrid without expansion, and hybrid with expansion. Both commands report Recall@1/3/6, MRR@1/3/6, per-question rankings, and elapsed time. Neither generates answers. Offline evaluation has no synthetic semantic vectors and cannot establish semantic/hybrid quality.
+
+[Recorded offline results](docs/evaluation-m4-offline.json): lexical Recall@6 **0.9167**, MRR@6 **0.8125**; graph expansion left these aggregate results unchanged. No live semantic comparison or answer-faithfulness score is claimed because this environment has no configured key. Negative-question calibration and larger held-out evaluations remain work to do before making quality claims. See [verification notes](docs/verification.md).
 
 The adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). Responses use `store: false`; source text and questions are treated as untrusted data, and no execution tools are available to the model.
 
@@ -214,8 +231,8 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 1. **Deterministic analysis — implemented:** safe ingestion, symbols, persistence and explorer.
 2. **Dependency graph — implemented:** Python/JS/TS import resolution, graph API, React Flow visualization.
 3. **Grounded Q&A — implemented:** semantic indexing, provider boundary, cited answers and an initial evaluation harness. Live model quality remains unmeasured in this environment.
-4. **Retrieval quality — next:** hybrid search, graph expansion, diagnostics and evaluation.
-5. **Read-only agent:** constrained tools and structured traces.
+4. **Hybrid retrieval — implemented:** keyword/symbol fusion, bounded graph expansion, diagnostics and comparison harness. Live quality measurement remains pending.
+5. **Read-only agent — next:** constrained tools and structured traces.
 6. **Reviewable edits:** isolated workspaces and diffs.
 7. **Sandboxed tests:** bounded execution and retries.
 8. **Approved pull requests:** explicit human approval before remote changes.
