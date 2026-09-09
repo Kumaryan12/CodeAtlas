@@ -57,6 +57,9 @@ def import_repository(session: Session, url: str, settings: Settings) -> Reposit
         repository.warning_count = sum(file.parsed.warning is not None for file in result.files)
         repository.languages = dict(Counter(file.language for file in result.files))
         repository.skipped = result.skipped
+        repository.resolution_configs = [
+            config.model_dump() for config in result.resolution_configs
+        ]
         repository.status = "partial" if repository.warning_count else "ready"
         file_rows = []
         symbol_rows = []
@@ -72,6 +75,9 @@ def import_repository(session: Session, url: str, settings: Settings) -> Reposit
                     "source": file.source,
                     "warning": file.parsed.warning,
                     "imports": file.parsed.imports,
+                    "import_references": [
+                        ref.model_dump() for ref in file.parsed.import_references
+                    ],
                     "symbol_count": len(file.parsed.symbols),
                 }
             )

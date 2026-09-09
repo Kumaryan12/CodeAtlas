@@ -2,7 +2,7 @@ import tree_sitter_javascript
 import tree_sitter_typescript
 from tree_sitter import Language, Node, Parser
 
-from codeatlas.parsers.types import ParsedSource, Symbol
+from codeatlas.parsers.types import ImportReference, ParsedSource, Symbol
 
 
 def parse_javascript(source: str, *, typescript: bool = False, tsx: bool = False) -> ParsedSource:
@@ -81,7 +81,17 @@ def parse_javascript(source: str, *, typescript: bool = False, tsx: bool = False
         if node.type in {"import_statement", "export_statement"}:
             imported = node.child_by_field_name("source")
             if imported:
-                result.imports.append(text(imported)[1:-1])
+                specifier = text(imported)[1:-1]
+                result.imports.append(specifier)
+                result.import_references.append(
+                    ImportReference(
+                        specifier=specifier,
+                        kind="javascript_export"
+                        if node.type == "export_statement"
+                        else "javascript_import",
+                        line=node.start_point.row + 1,
+                    )
+                )
         stack.extend((child, current) for child in reversed(node.named_children))
     result.imports = sorted(set(result.imports))
     return result

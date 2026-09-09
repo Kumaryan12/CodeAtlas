@@ -27,6 +27,7 @@ class Repository(Base):
     warning_count: Mapped[int] = mapped_column(Integer, default=0)
     languages: Mapped[dict] = mapped_column(JSON, default=dict)
     skipped: Mapped[dict] = mapped_column(JSON, default=dict)
+    resolution_configs: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
@@ -44,6 +45,7 @@ class RepositoryFile(Base):
     size_bytes: Mapped[int] = mapped_column(Integer)
     source: Mapped[str] = mapped_column(Text)
     imports: Mapped[list] = mapped_column(JSON, default=list)
+    import_references: Mapped[list | None] = mapped_column(JSON, nullable=True)
     warning: Mapped[str | None] = mapped_column(Text)
     symbol_count: Mapped[int] = mapped_column(Integer)
 

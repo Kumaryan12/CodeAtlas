@@ -141,3 +141,24 @@ def test_worker_timeout_is_controlled(tmp_path, monkeypatch):
     monkeypatch.setattr("codeatlas.ingestion.runner.subprocess.run", timeout)
     with pytest.raises(DomainError, match="time limit"):
         analyze(tmp_path, ScanLimits(), 1)
+
+
+def test_captures_bounded_alias_config_separately_from_source(tmp_path):
+    archive = make_archive(
+        tmp_path / "repository.tar.gz",
+        {
+            "repo/web/tsconfig.json": b'{"compilerOptions":{"paths":{"@/*":["src/*"]}}}',
+            "repo/web/src/a.ts": b"import '@/b';",
+            "repo/node_modules/tsconfig.json": b"ignored",
+        },
+    )
+    result = scan_archive(archive, tmp_path, ScanLimits())
+    assert len(result.files) == 1
+    assert result.resolution_configs[0].paths == {"@/*": ["src/*"]}
+    assert result.skipped == {"resolution_config": 1, "ignored_directory": 1}
+
+
+def test_import_observation_limit(tmp_path):
+    archive = make_archive(tmp_path / "repository.tar.gz", {"repo/a.py": b"import os\nimport sys"})
+    with pytest.raises(DomainError, match="too many import"):
+        scan_archive(archive, tmp_path, ScanLimits(max_imports=1))

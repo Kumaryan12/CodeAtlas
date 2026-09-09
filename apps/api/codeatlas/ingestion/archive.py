@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 from pydantic import BaseModel
 
 from codeatlas.core.errors import DomainError
+from codeatlas.dependencies.config import read_resolution_config
 from codeatlas.parsers.javascript import parse_javascript
 from codeatlas.parsers.python import parse_python
 from codeatlas.parsers.types import ScannedFile, ScanResult
@@ -53,6 +54,7 @@ class ScanLimits(BaseModel):
     max_file_bytes: int = 512 * 1024
     max_source_bytes: int = 10 * 1024 * 1024
     max_symbols: int = 20_000
+    max_imports: int = 50_000
 
 
 def safe_member_path(name: str) -> PurePosixPath:
@@ -95,7 +97,7 @@ def scan_tar(archive: Path, limits: ScanLimits) -> ScanResult:
     skipped: Counter[str] = Counter()
     seen: set[str] = set()
     roots: set[str] = set()
-    source_bytes = symbol_count = 0
+    source_bytes = symbol_count = import_count = config_bytes = 0
     with tarfile.open(archive, mode="r:") as contents:
         for member in contents:
             result.total_entries += 1
@@ -130,6 +132,26 @@ def scan_tar(archive: Path, limits: ScanLimits) -> ScanResult:
             language = EXTENSIONS.get(path.suffix.lower())
             if any(part.lower() in IGNORED_DIRECTORIES for part in path.parts[:-1]):
                 reason = "ignored_directory"
+            elif path.name in {"tsconfig.json", "jsconfig.json"}:
+                if member.size > 128 * 1024 or len(result.resolution_configs) >= 64:
+                    raise DomainError(
+                        "repository_too_large", "Alias configuration exceeds the scan limit.", 413
+                    )
+                config_bytes += member.size
+                if config_bytes > 1024 * 1024:
+                    raise DomainError(
+                        "repository_too_large", "Alias configuration exceeds 1 MiB.", 413
+                    )
+                handle = contents.extractfile(member)
+                if handle is None:
+                    raise DomainError("invalid_archive", "Unable to read configuration.")
+                with handle:
+                    raw_config = handle.read(128 * 1024 + 1)
+                result.resolution_configs.append(
+                    read_resolution_config(key, raw_config.decode("utf-8-sig", errors="replace"))
+                )
+                skipped["resolution_config"] += 1
+                continue
             elif not language:
                 reason = "unsupported_type"
             elif member.size > limits.max_file_bytes:
@@ -187,6 +209,11 @@ def scan_tar(archive: Path, limits: ScanLimits) -> ScanResult:
                 )
             )
             symbol_count += len(parsed.symbols)
+            import_count += len(parsed.import_references)
+            if import_count > limits.max_imports:
+                raise DomainError(
+                    "repository_too_large", "Repository has too many import statements.", 413
+                )
             if symbol_count > limits.max_symbols:
                 raise DomainError("repository_too_large", "Repository has too many symbols.", 413)
             result.files.append(

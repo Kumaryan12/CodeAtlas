@@ -6,8 +6,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, defer, load_only
 
 from codeatlas.core.errors import DomainError
+from codeatlas.dependencies.graph import build_graph
 from codeatlas.models.repository import CodeSymbol, Repository, RepositoryFile
-from codeatlas.parsers.types import Symbol
+from codeatlas.parsers.types import ResolutionConfig, Symbol
+from codeatlas.schemas.graph import DependencyGraph, GraphFile
 from codeatlas.schemas.repository import (
     FileDetail,
     FileList,
@@ -163,4 +165,23 @@ def list_symbols(
             for symbol, file in rows
         ],
         total=total,
+    )
+
+
+@router.get("/{repository_id}/graph", response_model=DependencyGraph)
+def repository_graph(repository_id: UUID, session: Database):
+    repository = get_repository(session, repository_id)
+    if repository.status not in {"ready", "partial"}:
+        raise DomainError("graph_not_ready", "A completed repository snapshot is required.", 409)
+    files = session.scalars(
+        select(RepositoryFile)
+        .options(defer(RepositoryFile.source, raiseload=True))
+        .where(RepositoryFile.repository_id == repository.id)
+    )
+    return build_graph(
+        repository.id,
+        [GraphFile.model_validate(file, from_attributes=True) for file in files],
+        [ResolutionConfig.model_validate(config) for config in repository.resolution_configs]
+        if repository.resolution_configs is not None
+        else None,
     )

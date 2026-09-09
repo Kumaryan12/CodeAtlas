@@ -191,3 +191,30 @@ def test_summary_queries_do_not_load_source_text(api, fake_download):
     assert statements
     assert all("repository_files.source" not in statement for statement in statements)
     assert all("repository_files.imports" not in statement for statement in statements)
+
+
+def test_graph_is_scoped_and_does_not_fetch_source(api, fake_download):
+    repo = api.post("/api/repositories", json={"url": "https://github.com/a/b"}).json()
+    statements = []
+
+    @event.listens_for(api.app.state.database, "before_cursor_execute")
+    def record_graph_selects(connection, cursor, statement, parameters, context, executemany):
+        if statement.startswith("SELECT"):
+            statements.append(statement)
+
+    response = api.get(f"/api/repositories/{repo['id']}/graph")
+    assert response.status_code == 200
+    assert len(response.json()["nodes"]) == 3
+    assert response.json()["legacy_files"] == 0
+    assert all("repository_files.source" not in statement for statement in statements)
+    assert api.get(f"/api/repositories/{uuid4()}/graph").status_code == 404
+
+
+def test_failed_snapshot_has_no_graph(api):
+    with patch(
+        "codeatlas.services.import_repository.GitHubClient.download",
+        side_effect=DomainError("missing", "Missing", 404),
+    ):
+        api.post("/api/repositories", json={"url": "https://github.com/a/b"})
+    repo = api.get("/api/repositories").json()["items"][0]
+    assert api.get(f"/api/repositories/{repo['id']}/graph").status_code == 409

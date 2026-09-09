@@ -1,6 +1,6 @@
 import ast
 
-from codeatlas.parsers.types import ParsedSource, Symbol
+from codeatlas.parsers.types import ImportReference, ParsedSource, Symbol
 
 
 def parse_python(source: str) -> ParsedSource:
@@ -39,8 +39,25 @@ def parse_python(source: str) -> ParsedSource:
             result.symbols.append(current)
         elif isinstance(node, ast.Import):
             result.imports.extend(alias.name for alias in node.names)
+            result.import_references.extend(
+                ImportReference(
+                    specifier=alias.name,
+                    kind="python_import",
+                    line=node.lineno,
+                )
+                for alias in node.names
+            )
         elif isinstance(node, ast.ImportFrom):
-            result.imports.append("." * node.level + (node.module or ""))
+            specifier = "." * node.level + (node.module or "")
+            result.imports.append(specifier)
+            result.import_references.append(
+                ImportReference(
+                    specifier=specifier,
+                    kind="python_from",
+                    names=[alias.name for alias in node.names],
+                    line=node.lineno,
+                )
+            )
         stack.extend((child, current) for child in reversed(list(ast.iter_child_nodes(node))))
     result.imports = sorted(set(result.imports))
     return result
