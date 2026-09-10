@@ -35,7 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             app.state.database.dispose()
 
-    app = FastAPI(title="CodeAtlas API", version="0.5.0", lifespan=lifespan)
+    app = FastAPI(title="CodeAtlas API", version="0.6.0", lifespan=lifespan)
     app.add_middleware(ImportBodyLimit)
     app.include_router(health_router, prefix="/api")
     app.include_router(repository_router, prefix="/api")

@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 5 — read-only investigation agent.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. A bounded agent can investigate snapshots; editing and execution remain future milestones.
+**Current milestone: 6 — reviewable edits.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Sandboxed execution is the next milestone.
 
 ## What works
 
@@ -223,7 +223,7 @@ Investigations use the existing `CODEATLAS_OPENAI_API_KEY` and `CODEATLAS_ANSWER
 | `read_file` | Snapshot-scoped file UUID; at most 120 lines and 6,000 UTF-8 source bytes |
 | `inspect_dependencies` | Resolved snapshot imports/importers; at most 10 neighbors in each direction |
 
-The application dispatches validated structured decisions into this fixed registry. There are no editing, shell, package-installation, arbitrary URL, or GitHub mutation tools. Agent activity writes only its own run/trace metadata; repository snapshots remain unchanged. Run tasks, public plans, summaries, and final claim/reference metadata are stored locally. Tool-output bodies and duplicate source excerpts are not persisted in run records; cited source is read from the snapshot when viewing a result.
+The application dispatches validated structured decisions into this fixed registry. Read-only runs expose no editing tools. Neither mode exposes shell, package-installation, arbitrary URL, or GitHub mutation tools. Read-only agent activity writes only its own run/trace metadata; repository snapshots remain unchanged. Run tasks, public plans, summaries, and final claim/reference metadata are stored locally. Tool-output bodies and duplicate source excerpts are not persisted in run records; cited source is read from the snapshot when viewing a result.
 
 | Route under `/api/repositories/{id}` | Behavior |
 | --- | --- |
@@ -236,6 +236,25 @@ A run permits **six model decisions and five read attempts**, including failed a
 Run the API with **one worker**. There is one AI operation at a time across Q&A, indexing, and investigations. Background execution is in-process, without a durable queue, automatic retries, cancellation, or resumability. On startup, unfinished runs are marked interrupted rather than silently rerun. If the database is unavailable during startup recovery, restart the API once the database is back. Model usage may incur charges; token/cost accounting is not yet recorded.
 
 The model is instructed to treat task/source strings as untrusted data. Registry and argument validation enforce the read boundary even if the model disregards those instructions. Citation checks reject invented evidence IDs but cannot prove answer faithfulness. Live agent quality remains unverified until a provider key is configured; see [verification](docs/verification.md).
+
+## Reviewable edits
+
+Open a snapshot → **Agent**, select **Propose edits (isolated draft)**, enter a small change request, and select **Prepare draft**. The agent records a public plan, inspects source, makes bounded draft changes, and reviews its diff. The UI shows draft writes separately from reads. Expand each changed file to review a Git-style unified diff, then **Download patch** after the run stops.
+
+Drafts are persistent **database-backed copy-on-write workspaces**, scoped to one run and its immutable snapshot. Unchanged source is read from that snapshot; changed/new contents live only in the run's overlay. They are not full filesystem checkouts or executable sandboxes. Only imported Python/JavaScript/TypeScript source is available; excluded files, configuration, assets, and Git metadata are not reconstructed. A new path is checked against imported source only, so compare the patch with the complete repository at the recorded base commit before applying it manually.
+
+| Additional editing-mode tool | Boundary |
+| --- | --- |
+| `read_workspace(path)` | Current whole draft file, at most 12,000 UTF-8 bytes, and SHA-256 hash |
+| `edit_file(path, expected_sha256, old_text, new_text)` | Requires a prior current read and matching hash; replaces exactly one occurrence |
+| `create_file(path, content)` | Adds a source path absent from the workspace; rejects traversal, Git paths, case and file/directory collisions |
+| `view_diff()` | Unified diff against original source; must review the latest changes before a run can complete |
+
+Start with `POST /api/repositories/{id}/agent-runs` and `{"task":"Add input validation","mode":"edit"}`. Omitting `mode` preserves read-only behavior. `GET /api/repositories/{id}/agent-runs/{run_id}/diff` returns the base commit and changed-file diffs. Run summaries identify their mode. There is no apply, execute, push, or PR endpoint.
+
+Editing runs allow **10 tool attempts and 11 model decisions**, with the same checked 90-second and 48 KB model-context budgets. Drafts allow at most **10 changed files / 60,000 UTF-8 bytes**, with 12 KB per file. Paths use a restricted ASCII relative-source format, max 200 characters. There are no delete/rename tools. Repeated snapshot reads remain rejected; workspace reads and diff reviews can repeat after edits. Each successful write persists atomically with its completed trace entry. Failed, limited, or interrupted runs retain partial drafts and display that status explicitly.
+
+Snapshot search, symbols, dependencies, and citations always describe the original source. Draft content is shown through workspace reads and diffs; it is not reindexed or reparsed. The final cited findings remain separate from the proposed changes. Drafts are **untested**: generation and structural validation do not establish correctness, and this milestone never executes imported or generated code. Draft source is stored locally and may be sent to the model on subsequent decisions. Live model editing quality has not been measured without a configured key.
 
 ## Checks
 
@@ -262,6 +281,6 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 3. **Grounded Q&A — implemented:** semantic indexing, provider boundary, cited answers and an initial evaluation harness. Live model quality remains unmeasured in this environment.
 4. **Hybrid retrieval — implemented:** keyword/symbol fusion, bounded graph expansion, diagnostics and comparison harness. Live quality measurement remains pending.
 5. **Read-only agent — implemented:** bounded investigation loop, scoped read tools, persisted traces and cited findings.
-6. **Reviewable edits — next:** isolated workspaces and diffs.
-7. **Sandboxed tests:** bounded execution and retries.
+6. **Reviewable edits — implemented:** isolated source drafts, guarded edit/create tools, diff review and patch download.
+7. **Sandboxed tests — next:** bounded execution and retries.
 8. **Approved pull requests:** explicit human approval before remote changes.

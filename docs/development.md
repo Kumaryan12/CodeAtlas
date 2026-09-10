@@ -143,6 +143,20 @@ Startup recovery marks unfinished runs and pending steps interrupted/failed. It 
 
 Scripted-provider tests prove control flow and boundaries, not autonomous investigation quality. Live semantic and agent evaluation still requires a configured key. Before relying on findings, run representative tasks with expected evidence, include misleading-source instructions and negative questions, and assess faithfulness and useful task completion.
 
-## Proposed Milestone 6
+## Milestone 6: isolated source drafts
 
-Add reviewable code edits inside isolated workspaces, with explicit proposed changes and a diff view. Keep original snapshots untouched. Do not add unrestricted execution or remote pushes to the product. Establish the live read-only baseline before expanding agent authority. Begin only after the user's next instruction.
+Migration `0005` adds `AgentRun.mode` (default `investigate`, including existing rows) and `changes` (JSON object, default `{}`). The immutable snapshot plus a bounded per-run overlay forms a persistent source workspace. This avoids copying every snapshot file or introducing filesystem privileges before Milestone 7. `DraftWorkspace` has no filesystem, subprocess, or network capability; its only mutations replace the current run's overlay. Nothing writes `RepositoryFile`, parser metadata, embeddings, or GitHub.
+
+The request must explicitly choose `mode: edit`. The server chooses `DraftDecision` and its registry based on the stored mode, never on model output. Read-only runs keep their original schema and registry. The provider uses the corresponding strict structured-output schema. Tools reject extra arguments and unsafe paths. Writes require an exact, uniquely matching text replacement and a current SHA-256 from an actual workspace read, preventing blind or stale edits. Each tool's accepted mutation and completed trace commit together. Errors before commit leave the previous persisted draft intact.
+
+The overlay is bounded to 10 paths, 12 KB UTF-8 per file, 60 KB total. Paths are ASCII source paths up to 200 characters, with no empty/dot/traversal components, backslashes, NUL, or `.git` components. Creation also rejects case and file/directory conflicts with all imported source. Limits are enforced by application code, independent of model instructions. New-file absence is only known relative to the imported subset. No delete/rename, tests, automatic apply, or PR support is claimed.
+
+Editing loops allow 10 tools / 11 model calls and up to 21 trace entries. They share the existing one-operation lock, checked time and context budgets, and restart recovery. A model finish with changes requires `view_diff` for the current overlay. Even on a failed finish, the user can inspect/download partial changes. Diff output is generated with Python's standard library, preserves LF/CRLF and missing terminal newlines, and is tested by applying it with Git in disposable test directories. No product code invokes Git.
+
+`GET .../agent-runs/{run_id}/diff` scopes the run to the requested snapshot and returns a base SHA plus per-file unified diffs. The frontend proxy permits this exact GET path. The UI refreshes the diff as trace/status changes, labels all drafts untested, distinguishes writes, and disables patch download while a run is active or the diff fetch has failed. React renders all model/source text as escaped text. Snapshot citations continue opening original source.
+
+Why a database overlay? Import currently retains only analyzed source, not complete checkouts. A full test sandbox requires a separate future design for retrieving the pinned repository, reconciling the patch, configuring isolation and dependencies, and bounding execution. The present workspace is suitable for reviewing small source proposals, not running a project.
+
+## Next milestone
+
+Milestone 7 is bounded test execution in an actual sandbox, with test output and controlled retries. Live agent quality remains unmeasured; obtain and review a provider baseline before expanding execution authority. Begin only after the user's next instruction.

@@ -13,5 +13,6 @@ export function allowedRepositoryPath(parts: string[], method: string): boolean 
   if (method === "POST") return parts.length === 2 && ["index", "ask", "retrieve", "agent-runs"].includes(parts[1]);
   if (parts.length === 1) return true;
   if (parts.length === 2) return ["files", "symbols", "graph", "index", "agent-runs"].includes(parts[1]);
+  if (parts.length === 4) return parts[1] === "agent-runs" && uuid.test(parts[2]) && parts[3] === "diff";
   return parts.length === 3 && ["files", "agent-runs"].includes(parts[1]) && uuid.test(parts[2]);
 }

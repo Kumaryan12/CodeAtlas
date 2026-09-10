@@ -5,6 +5,7 @@ export type RunSummary = {
   id: string;
   repository_id: string;
   task: string;
+  mode: "investigate" | "edit";
   status: RunStatus;
   model: string;
   created_at: string;
@@ -16,7 +17,7 @@ export type AgentRun = RunSummary & {
   plan: string[];
   steps: {
     number: number;
-    kind: "model" | "read";
+    kind: "model" | "read" | "write";
     action: string;
     status: "running" | "completed" | "failed";
     started_at: string;
@@ -36,9 +37,25 @@ export function isRunActive(run: Pick<RunSummary, "status">): boolean {
   return run.status === "running";
 }
 
-export function traceCounts(steps: AgentRun["steps"]): { model: number; reads: number } {
+export function traceCounts(steps: AgentRun["steps"]): { model: number; reads: number; writes: number } {
   return {
     model: steps.filter((step) => step.kind === "model").length,
+    writes: steps.filter((step) => step.kind === "write").length,
     reads: steps.filter((step) => step.kind === "read").length,
   };
+}
+
+
+export type WorkspaceDiff = {
+  run_id: string;
+  commit_sha: string | null;
+  total: number;
+  files: { path: string; status: "added" | "modified"; diff: string }[];
+};
+
+export function diffLineKind(line: string): string {
+  if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("diff --git") || line.startsWith("@@")) return "diff-heading";
+  if (line.startsWith("+")) return "diff-addition";
+  if (line.startsWith("-")) return "diff-deletion";
+  return "diff-context";
 }

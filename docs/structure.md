@@ -10,7 +10,8 @@ CodeAtlas/
 │   │   │   ├── agents/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── runner.py
-│   │   │   │   └── tools.py
+│   │   │   │   ├── tools.py
+│   │   │   │   └── workspace.py
 │   │   │   ├── ai/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── investigator.py
@@ -79,7 +80,8 @@ CodeAtlas/
 │   │   │   │   ├── 0001_repository_analysis.py
 │   │   │   │   ├── 0002_import_references.py
 │   │   │   │   ├── 0003_semantic_index.py
-│   │   │   │   └── 0004_agent_runs.py
+│   │   │   │   ├── 0004_agent_runs.py
+│   │   │   │   └── 0005_draft_workspaces.py
 │   │   │   ├── env.py
 │   │   │   └── script.py.mako
 │   │   ├── tests/
@@ -97,7 +99,8 @@ CodeAtlas/
 │   │   │   ├── test_parsers.py
 │   │   │   ├── test_qa.py
 │   │   │   ├── test_repositories.py
-│   │   │   └── test_retrieval.py
+│   │   │   ├── test_retrieval.py
+│   │   │   └── test_workspace.py
 │   │   ├── alembic.ini
 │   │   ├── pyproject.toml
 │   │   └── requirements-dev.lock
@@ -122,6 +125,7 @@ CodeAtlas/
 │       │   │   ├── repository-ask.tsx
 │       │   │   ├── repository-explorer.tsx
 │       │   │   ├── retrieval-diagnostics.tsx
+│       │   │   ├── workspace-review.tsx
 │       │   │   └── workspace.tsx
 │       │   └── lib/
 │       │       ├── agent.ts

@@ -195,3 +195,22 @@ This record describes local verification, not a production-readiness certificati
 5. Ask for an operation outside read scope. The product has no mutation/execution tool; it should either report its limitation or fail a rejected decision, never alter source.
 6. Stop/restart the API during a run and confirm that the run and pending step are marked interrupted/failed, with no automatic rerun. In-flight provider calls cannot currently be cancelled from the UI.
 7. Review real-provider findings against expected evidence before making quality claims or enabling editing in a later milestone.
+
+## Milestone 6 — reviewable source edits
+
+- **171 backend tests passed**. New tests cover isolated/reversible edits, required current reads and SHA-256 preconditions, ambiguous replacements, traversal/absolute/Git/unsupported paths, case and directory collisions, byte/file limits, extra arguments, read-only mode rejection, persisted partial drafts, recovery after restart, cross-snapshot diff access, and mandatory review before successful completion.
+- Unified patches were applied with Git in disposable test directories and checked for exact resulting bytes, including CRLF, Unicode separators within source, absent terminal newlines, new empty files, and emptied existing files. Product code never invokes Git or executes source.
+- **18 frontend tests passed**, including the exact GET-only diff proxy route and diff-line classification. ESLint, TypeScript, Ruff lint/format, and the Next.js Webpack production build passed. Migration `0005` applied to PostgreSQL; `alembic check` found no pending changes. Existing SQLite migration/metadata tests also passed.
+- A temporary real HTTP server with a scripted provider completed a read → edit → diff → finish run against PostgreSQL. Seven trace entries correctly distinguished the draft write. The stored overlay contained the edit, while original source remained byte-identical. The production frontend proxy served identical diff data and the run mode; rejected diff POST and foreign-origin requests; and returned the expected missing-key error for same-origin editing requests.
+- Only the unique smoke-test snapshot and its cascading run were removed. Existing user snapshots were preserved.
+- Patch download waits for the diff associated with the latest run status/trace, preventing download of a stale intermediate diff while the final fetch is pending. All drafts are labeled untested; partial results remain reviewable after failures or interruption.
+- Browser runtime again returned no available browser. Visual interaction, hydration, patch-download interaction, keyboard behavior, and accessibility remain unverified. Live model editing quality remains unmeasured because no OpenAI key is configured. Scripted-provider tests establish application behavior, not generated-code correctness. The two existing upstream deprecation warnings remain.
+
+### Manual verification
+
+1. Apply migrations and configure the server provider key. Open a completed snapshot → Agent, choose **Propose edits (isolated draft)**, and submit a small request against a source file under 12 KB.
+2. Verify that the public plan precedes writes, the trace identifies draft writes, and the diff updates as the run progresses. Download should be unavailable while the run is active.
+3. After completion, inspect each changed file and download the patch. Compare against a separate full checkout at the displayed base SHA before applying it manually. Check new paths against files excluded during import.
+4. Reopen the original file through the explorer or a citation and confirm its content is unchanged. Reload the page and verify the saved draft remains available.
+5. Interrupt a run after a write, restart the API, and verify that the run is interrupted and its partial diff is preserved. No automatic rerun or apply occurs.
+6. Start a read-only investigation and confirm its tool permissions remain unchanged. No mode exposes execution, automatic apply, or GitHub mutation.
