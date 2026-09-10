@@ -1,5 +1,6 @@
 "use client";
 
+import { TestReview } from "./test-review";
 import { useEffect, useState } from "react";
 import { diffLineKind, type AgentRun, type WorkspaceDiff } from "@/lib/agent";
 import { request } from "@/lib/repositories";
@@ -27,7 +28,7 @@ export function WorkspaceReview({ repositoryId, run }: { repositoryId: string; r
   }
 
   return <section className="workspace-review" aria-label="Proposed changes">
-    <div className="agent-run-heading"><h3>Proposed changes</h3><span className="ask-state">Untested draft</span></div>
+    <div className="agent-run-heading"><h3>Proposed changes</h3><span className="ask-state">Draft · see test results below</span></div>
     <p className="muted">This workspace contains imported source only. Review against the full repository before applying a downloaded patch. Files, configuration, and assets excluded during import are unavailable here.</p>
     {run.status !== "completed" && <p className="notice warning">{run.status === "running" ? "The agent is still working. This diff may change." : "This run did not complete. Any partial changes are preserved below for review."}</p>}
     {error && <p className="notice error" role="alert">{error} <button className="secondary-button" onClick={() => setRevision((value) => value + 1)}>Retry diff</button></p>}
@@ -41,5 +42,6 @@ export function WorkspaceReview({ repositoryId, run }: { repositoryId: string; r
         </details>)}
       </>}
     </>}
+    <TestReview repositoryId={repositoryId} run={run} digest={loadedVersion === version && !error ? diff?.workspace_digest ?? null : null} />
   </section>;
 }

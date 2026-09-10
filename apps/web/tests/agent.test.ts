@@ -18,7 +18,7 @@ test("terminal run states stop polling and counts include failed read attempts",
   assert.ok(isRunActive({ status: "running" }));
   for (const status of ["completed", "failed", "limited", "interrupted"] as const) assert.equal(isRunActive({ status }), false);
   const step = { number: 1, kind: "model" as const, action: "choose_next_step", status: "completed" as const, started_at: "", duration_ms: 4, summary: "", error_code: null };
-  assert.deepEqual(traceCounts([step, { ...step, number: 2, kind: "read", status: "failed" }]), { model: 1, reads: 1, writes: 0 });
+  assert.deepEqual(traceCounts([step, { ...step, number: 2, kind: "read", status: "failed" }]), { model: 1, reads: 1, writes: 0, executions: 0 });
 });
 
 

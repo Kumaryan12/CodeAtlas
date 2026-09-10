@@ -47,7 +47,7 @@ The migration creates foreign keys, a repository/path uniqueness constraint, a s
 - Never commit `.env`, generated dependencies/builds, or imported repository workspaces.
 - Keep parser fixture files out of automated formatting: exact source locations and malformed examples are intentional test inputs.
 - Add only layers used by current behavior. API endpoints share database/session dependencies; ingestion orchestration and parsers stay outside route handlers.
-- Do not execute untrusted source. Future test execution needs an actual sandbox, permissions, resource controls and traces.
+- Never execute untrusted source on the host. Milestone 7 permits explicit test profiles only inside its bounded containers.
 - Keep future model providers behind interfaces; introduce those interfaces when Q&A begins.
 
 The [source tree](structure.md) lists the actual tracked files.
@@ -157,6 +157,32 @@ Editing loops allow 10 tools / 11 model calls and up to 21 trace entries. They s
 
 Why a database overlay? Import currently retains only analyzed source, not complete checkouts. A full test sandbox requires a separate future design for retrieving the pinned repository, reconciling the patch, configuring isolation and dependencies, and bounding execution. The present workspace is suitable for reviewing small source proposals, not running a project.
 
+## Milestone 7: bounded test execution
+
+Migration `0006` adds nullable `AgentRun.test_profile` and a `test_executions` table. A separate table is justified because tests have their own asynchronous lifecycle, can be started manually after an agent stops, and contain bounded output larger than trace summaries. Every row records an exact workspace fingerprint and immutable local image ID. The fingerprint hashes snapshot ID plus all overlay content; immutable snapshot storage makes that sufficient for identifying the tested source version.
+
+`schemas/agent.py` keeps three decision schemas: investigation, editing, and explicitly authorized execution. The model cannot promote its own permissions. `run_tests` accepts no arguments; the server uses the profile approved in the start request. Manual execution is a separate scoped POST requiring the fingerprint the user just reviewed. All test operations share the existing one-operation lock. A maximum of three rows per draft bounds manual and autonomous attempts together. Twenty tools, twenty-one model decisions, 180 checked seconds and 48 KB context bound test-enabled agent work.
+
+`sandbox/service.py` materializes original source plus overlay into a unique temporary directory after path/count/byte validation. It never fetches additional repository content, interprets package configuration, or installs dependencies. `sandbox/docker.py` resolves only application-owned image tags, invokes Docker with argument lists, applies resource and privilege restrictions, streams output with selectors, checks actual container exit state, and force-removes the named container in a finally block. The trusted timeout entrypoint is PID 1, so the command deadline survives a crashed host controller. No user command, image, mount, environment variable, or execution option enters the Docker command.
+
+The trusted image launchers discover standard-library tests only. Python imports generated/source code only inside the container. Node invokes its built-in test runner directly rather than npm scripts. Images have pinned bases, no per-request builds/pulls, and are reused only as immutable runtime layers; every test has a fresh read-only source copy and bounded temporary filesystem. The repository checkout, database credentials, API keys, and Docker socket are not mounted.
+
+Results are durable before the next model call. An execution trace distinguishes passed tool calls from failed tests; stdout/stderr stays in test records, with at most 3,000 characters from each stream returned to the model. These excerpts are untrusted observations, not instructions or snapshot citations. A failure can guide another guarded edit, diff review, and test, up to the shared attempt budget. A finish after a later edit without a matching test result fails with `draft_not_tested`. A matching failed test can still end the agent workflow: the UI retains the failure and does not label the code correct.
+
+The frontend provides an explicit permission selector for autonomous tests, plus manual testing beneath a stopped draft's diff. Polling covers manual jobs independently of agent lifecycle. Fingerprint matching prevents old successful results from applying to new content. The proxy permits only the exact scoped test GET/POST routes; origin and body limits remain in force.
+
+| Decision | Trade-off | Interview question |
+| --- | --- | --- |
+| Fixed unittest/Node profiles | Smaller attack surface, no arbitrary project command support | Why is validating a command string weaker than selecting a fixed runner? |
+| Source-only workspace | Reuses immutable data without network/dependency setup; incomplete project environment | What would a reproducible full-checkout sandbox require? |
+| Docker with limits and PID 1 deadline | Practical local isolation; shares a kernel and depends on trusted daemon configuration | What changes before offering execution to hostile public tenants? |
+| Versioned test rows | Avoids stale success and supports manual/asynchronous runs | How do you prove which exact draft a result tested? |
+| Three total attempts | Predictable execution budget; complex repairs may stop incomplete | How do you bound autonomous repair without hiding failure? |
+
+Tests cover mocked API/orchestration and opt-in real containers. Run the latter with `CODEATLAS_TEST_DOCKER=1 .../pytest apps/api/tests/test_sandbox_live.py -q`; they require the trusted images. A real HTTP/PostgreSQL smoke additionally verifies fail → repair → pass and manual execution through the production frontend. No live model quality is inferred from scripted decisions.
+
+Technical debt: source/config/dependency completeness, stronger multi-tenant isolation, durable jobs, cancellation, exact test counts/coverage, runtime image maintenance, and crash orphan cleanup are unresolved. The watchdog stops execution after a host crash, but stopped container metadata or temporary files can remain. Never expose the Docker-backed API publicly in this development form.
+
 ## Next milestone
 
-Milestone 7 is bounded test execution in an actual sandbox, with test output and controlled retries. Live agent quality remains unmeasured; obtain and review a provider baseline before expanding execution authority. Begin only after the user's next instruction.
+Milestone 8 is explicit approval of an exact diff followed by optional GitHub branch/commit/push/PR creation. It must bind approval to the reviewed version and report test coverage/limitations. Begin only after the user's next instruction.

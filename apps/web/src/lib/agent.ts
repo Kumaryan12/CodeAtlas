@@ -1,3 +1,4 @@
+import type { TestProfile } from "./test-runs";
 import type { Citation } from "./qa";
 
 export type RunStatus = "running" | "completed" | "failed" | "limited" | "interrupted";
@@ -6,6 +7,7 @@ export type RunSummary = {
   repository_id: string;
   task: string;
   mode: "investigate" | "edit";
+  test_profile: TestProfile | null;
   status: RunStatus;
   model: string;
   created_at: string;
@@ -17,7 +19,7 @@ export type AgentRun = RunSummary & {
   plan: string[];
   steps: {
     number: number;
-    kind: "model" | "read" | "write";
+    kind: "model" | "read" | "write" | "execute";
     action: string;
     status: "running" | "completed" | "failed";
     started_at: string;
@@ -37,9 +39,10 @@ export function isRunActive(run: Pick<RunSummary, "status">): boolean {
   return run.status === "running";
 }
 
-export function traceCounts(steps: AgentRun["steps"]): { model: number; reads: number; writes: number } {
+export function traceCounts(steps: AgentRun["steps"]): { model: number; reads: number; writes: number; executions: number } {
   return {
     model: steps.filter((step) => step.kind === "model").length,
+    executions: steps.filter((step) => step.kind === "execute").length,
     writes: steps.filter((step) => step.kind === "write").length,
     reads: steps.filter((step) => step.kind === "read").length,
   };
@@ -49,6 +52,7 @@ export function traceCounts(steps: AgentRun["steps"]): { model: number; reads: n
 export type WorkspaceDiff = {
   run_id: string;
   commit_sha: string | null;
+  workspace_digest: string;
   total: number;
   files: { path: string; status: "added" | "modified"; diff: string }[];
 };

@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 6 — reviewable edits.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Sandboxed execution is the next milestone.
+**Current milestone: 7 — sandboxed tests.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Explicitly authorized tests run in bounded containers with versioned results and controlled agent retries.
 
 ## What works
 
@@ -141,7 +141,7 @@ List responses contain `{ "items": [...], "total": N }`. Application errors use 
 
 ## Security boundaries and limits
 
-Repository code is never executed, imported, installed, or tested. Only the trusted CodeAtlas parser runs, via a fixed subprocess command with isolated Python imports and a minimal environment. This process boundary provides timeout enforcement; it is **not an OS security sandbox** for native-parser vulnerabilities.
+During ingestion and analysis, repository code is never executed, imported, installed, or tested. Only the trusted CodeAtlas parser runs, via a fixed subprocess command with isolated Python imports and a minimal environment. This process boundary provides timeout enforcement; it is **not an OS security sandbox** for native-parser vulnerabilities.
 
 - Only HTTPS `github.com/owner/repo` roots are accepted. No credentials, ports, query strings, fragments, subpaths, arbitrary hosts, or redirects.
 - Network requests use fixed GitHub API/codeload hosts, no environment proxy/credentials, bounded streams, and timeouts.
@@ -207,7 +207,7 @@ The live comparison reports semantic-only, hybrid without expansion, and hybrid 
 
 [Recorded offline results](docs/evaluation-m4-offline.json): lexical Recall@6 **0.9167**, MRR@6 **0.8125**; graph expansion left these aggregate results unchanged. No live semantic comparison or answer-faithfulness score is claimed because this environment has no configured key. Negative-question calibration and larger held-out evaluations remain work to do before making quality claims. See [verification notes](docs/verification.md).
 
-The adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). Responses use `store: false`; source text and questions are treated as untrusted data, and no execution tools are available to the model.
+The adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). Responses use `store: false`; source text and questions are treated as untrusted data, and Q&A exposes no execution tools.
 
 ## Read-only investigations
 
@@ -233,7 +233,7 @@ The application dispatches validated structured decisions into this fixed regist
 
 A run permits **six model decisions and five read attempts**, including failed attempts. Search can add up to five query-embedding calls. Repeated identical reads are rejected. Source evidence is capped at 12 excerpts / 24 KB; serialized model context at 48 KB. No new decision or read starts after the checked 90-second budget; an in-flight provider call can extend elapsed time. A run may finish as completed, failed, limited, or interrupted. A completed run can still report insufficient context.
 
-Run the API with **one worker**. There is one AI operation at a time across Q&A, indexing, and investigations. Background execution is in-process, without a durable queue, automatic retries, cancellation, or resumability. On startup, unfinished runs are marked interrupted rather than silently rerun. If the database is unavailable during startup recovery, restart the API once the database is back. Model usage may incur charges; token/cost accounting is not yet recorded.
+Run the API with **one worker**. There is one operation at a time across Q&A, indexing, investigations, and sandbox tests. Background execution is in-process, without a durable queue, job-level automatic retries, cancellation, or resumability. On startup, unfinished runs are marked interrupted rather than silently rerun. If the database is unavailable during startup recovery, restart the API once the database is back. Model usage may incur charges; token/cost accounting is not yet recorded.
 
 The model is instructed to treat task/source strings as untrusted data. Registry and argument validation enforce the read boundary even if the model disregards those instructions. Citation checks reject invented evidence IDs but cannot prove answer faithfulness. Live agent quality remains unverified until a provider key is configured; see [verification](docs/verification.md).
 
@@ -250,11 +250,50 @@ Drafts are persistent **database-backed copy-on-write workspaces**, scoped to on
 | `create_file(path, content)` | Adds a source path absent from the workspace; rejects traversal, Git paths, case and file/directory collisions |
 | `view_diff()` | Unified diff against original source; must review the latest changes before a run can complete |
 
-Start with `POST /api/repositories/{id}/agent-runs` and `{"task":"Add input validation","mode":"edit"}`. Omitting `mode` preserves read-only behavior. `GET /api/repositories/{id}/agent-runs/{run_id}/diff` returns the base commit and changed-file diffs. Run summaries identify their mode. There is no apply, execute, push, or PR endpoint.
+Start with `POST /api/repositories/{id}/agent-runs` and `{"task":"Add input validation","mode":"edit"}`. Omitting `mode` preserves read-only behavior. `GET /api/repositories/{id}/agent-runs/{run_id}/diff` returns the base commit and changed-file diffs. Run summaries identify their mode. There is no arbitrary-command, apply, push, or PR endpoint. Explicit test execution is described below.
 
 Editing runs allow **10 tool attempts and 11 model decisions**, with the same checked 90-second and 48 KB model-context budgets. Drafts allow at most **10 changed files / 60,000 UTF-8 bytes**, with 12 KB per file. Paths use a restricted ASCII relative-source format, max 200 characters. There are no delete/rename tools. Repeated snapshot reads remain rejected; workspace reads and diff reviews can repeat after edits. Each successful write persists atomically with its completed trace entry. Failed, limited, or interrupted runs retain partial drafts and display that status explicitly.
 
-Snapshot search, symbols, dependencies, and citations always describe the original source. Draft content is shown through workspace reads and diffs; it is not reindexed or reparsed. The final cited findings remain separate from the proposed changes. Drafts are **untested**: generation and structural validation do not establish correctness, and this milestone never executes imported or generated code. Draft source is stored locally and may be sent to the model on subsequent decisions. Live model editing quality has not been measured without a configured key.
+Snapshot search, symbols, dependencies, and citations always describe the original source. Draft content is shown through workspace reads and diffs; it is not reindexed or reparsed. The final cited findings remain separate from the proposed changes. Drafts start **untested**: generation and structural validation do not establish correctness. Test results apply only to the exact draft fingerprint and selected profile. Draft source is stored locally and may be sent to the model on subsequent decisions. Live model editing quality has not been measured without a configured key.
+
+## Sandboxed tests
+
+Build the two trusted images from the checked-in Dockerfiles (base images are digest-pinned), then enable execution on the API server:
+
+```sh
+docker build -f sandbox/python.Dockerfile -t codeatlas-sandbox-python:v1 sandbox
+docker build -f sandbox/node.Dockerfile -t codeatlas-sandbox-node:v1 sandbox
+# Set CODEATLAS_SANDBOX_ENABLED=true in your local .env, then restart the API.
+```
+
+No image is pulled or built while processing a test request. The server resolves the local trusted image to an immutable ID and records it with the result. Repository Dockerfiles, package scripts, shell commands, runtime arguments and image names are never accepted from the user or model.
+
+Two workflows are available:
+
+- **Review, then test:** open an existing stopped draft in Agent, review its diff, select a test profile under **Sandbox tests**, then select **Run tests in sandbox**. This action needs Docker and the server execution setting, but no OpenAI key.
+- **Agent with tests:** while creating an editing run, change **Agent test permission** from its default **No execution** to a specific profile. Starting the run explicitly permits the agent to use `run_tests()` and make bounded repairs. The agent must review the latest diff before each execution. Test output excerpts may be sent to the model.
+
+| Profile | Fixed behavior |
+| --- | --- |
+| `python-unittest` | Python 3.13 standard-library `unittest`; discover `test*.py` under `tests/` when present, otherwise the workspace root. Nested discovery follows unittest package rules. No discovered tests returns exit 5. |
+| `node-test` | Node 24 built-in test runner; discover `.test`/`.spec` files ending in `.js`, `.cjs`, `.mjs`, or `.ts`, with concurrency 1. Native TypeScript support covers erasable types; no JSX/TSX compilation. No matching files returns exit 5. |
+
+Only the **imported source subset plus draft changes** is materialized, up to 1,000 files / 8 MiB. Source paths are revalidated; traversal and case/file-directory conflicts fail closed. Package/configuration/assets excluded during import are absent. There is no network or dependency installation, so tests requiring third-party packages, databases, configuration, or services will fail or remain unsupported. A passing process exit does not prove test coverage, correctness, or that the full repository suite passes; test code itself is untrusted.
+
+Each fresh container runs as UID/GID 65534, with no network, all Linux capabilities dropped, no-new-privileges, default seccomp, a read-only root and source mount, one CPU, 256 MiB memory with no additional swap, 64 PIDs, file/open-file limits, 16 MiB shared memory and a 64 MiB temporary filesystem. It receives no host credentials, environment values, or Docker socket. Only the temporary source copy is mounted. The fixed PID 1 watchdog kills the command after **30 seconds**, while the host controller enforces a 35-second attach deadline. Docker administration and cleanup have separate short deadlines. Combined stdout/stderr is capped at **32 KiB**; exceeding it stops the container. Terminal control sequences are stripped from persisted output.
+
+Containers are force-removed and temporary source copies are deleted after normal execution, errors, output limits, or timeouts. An API crash marks pending test records interrupted on restart; the in-container watchdog still stops execution. A hard crash or unavailable Docker daemon can leave stopped container metadata or temporary source directories for operator cleanup; cleanup failure is recorded, never reported as a passing result. Run one API worker against a local trusted Docker daemon. This is a development container boundary, not a hardened public multi-tenant execution service; a dedicated VM/daemon or stronger isolation is needed before exposing untrusted execution publicly. See Docker's [runtime controls](https://docs.docker.com/reference/cli/docker/container/run) and [security model](https://docs.docker.com/engine/security/).
+
+Migration `0006` adds explicit per-run test permission and a `test_executions` table. Each result records profile, workspace fingerprint, image ID, status, stdout, stderr, exit code, duration, and timestamps. Results are retained separately from source citations. The UI labels earlier-draft results and never transfers a passing status to edited content.
+
+| Route under `/api/repositories/{id}/agent-runs/{run_id}` | Behavior |
+| --- | --- |
+| `GET /test-runs` | Up to three persisted test attempts, in chronological order |
+| `POST /test-runs` | Explicit manual execution; body `{"profile":"python-unittest","workspace_digest":"<digest from GET diff>"}`; returns 202 |
+
+Manual execution rejects active drafts, stale fingerprints, concurrent AI/test operations, and unsupported profiles/extra arguments. Agent execution requires `mode: edit` and `test_profile: python-unittest` or `node-test` when starting the run. The model gets a parameterless `run_tests` tool only for that authorized mode.
+
+A draft permits **three test attempts total**, including manual and agent attempts. The agent can therefore make at most **two repair/retest iterations**. Test-enabled runs allow 20 total tool attempts / 21 model decisions, a checked 180-second overall budget and the existing 48 KB model-context cap. The agent cannot finish successfully after another edit without a test result for that latest draft. A completed agent run can still contain failing/error test results: completion describes the agent workflow, not test success. Failures and bounded output excerpts become observations; snapshots and host project files remain unchanged.
 
 ## Checks
 
@@ -282,5 +321,5 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 4. **Hybrid retrieval — implemented:** keyword/symbol fusion, bounded graph expansion, diagnostics and comparison harness. Live quality measurement remains pending.
 5. **Read-only agent — implemented:** bounded investigation loop, scoped read tools, persisted traces and cited findings.
 6. **Reviewable edits — implemented:** isolated source drafts, guarded edit/create tools, diff review and patch download.
-7. **Sandboxed tests — next:** bounded execution and retries.
-8. **Approved pull requests:** explicit human approval before remote changes.
+7. **Sandboxed tests — implemented:** opt-in fixed profiles, container limits, versioned output, and up to two repair/retest iterations.
+8. **Approved pull requests — next:** explicit human approval before remote changes.

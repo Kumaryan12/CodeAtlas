@@ -11,6 +11,7 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
   onOpenSource: (citation: Citation) => void;
 }) {
   const [mode, setMode] = useState<"investigate" | "edit">("investigate");
+  const [testProfile, setTestProfile] = useState<"" | "python-unittest" | "node-test">("");
   const [task, setTask] = useState("");
   const [history, setHistory] = useState<RunList | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
     setStarting(true); setError("");
     try {
       const created = await request<AgentRun>(`/${repositoryId}/agent-runs`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task: task.trim(), mode }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task: task.trim(), mode, test_profile: mode === "edit" && testProfile ? testProfile : null }),
       });
       setSelectedId(created.id); setRun(created); setTask("");
       setRevision((value) => value + 1);
@@ -80,7 +81,7 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
   return <section className="agent-panel" aria-label="Repository agent">
     <div className="ask-heading"><div><p className="eyebrow">REPOSITORY AGENT</p><h2>Investigate. Propose. Review.</h2>
       <p className="muted">Investigate source or ask the agent to prepare a draft for review.</p></div><span className="ask-state">{mode === "edit" ? "Isolated draft" : "Read-only"}</span></div>
-    <p className="agent-boundary">{mode === "edit" ? "Draft mode adds source reads, edits, file creation, and diff review in a separate workspace. Up to 10 tools and 11 model decisions. Your snapshot is preserved." : "Allowed: list files, find symbols, search code, read excerpts, inspect dependencies. Up to 5 read actions and 6 model decisions per run."}</p>
+    <p className="agent-boundary">{mode === "edit" ? (testProfile ? "Draft mode with tests: up to 20 tools, 21 model decisions and 3 test attempts. The agent may make two repair/retest iterations." : "Draft mode adds source reads, edits, file creation, and diff review in a separate workspace. Up to 10 tools and 11 model decisions. Your snapshot is preserved.") : "Allowed: list files, find symbols, search code, read excerpts, inspect dependencies. Up to 5 read actions and 6 model decisions per run."}</p>
     {error && <p className="notice error" role="alert">{error}</p>}
     <button className="secondary-button" disabled={starting} onClick={() => { setError(""); setRevision((value) => value + 1); }}>Refresh runs and configuration</button>
     {index && !index.configured && <p className="notice warning">Set CODEATLAS_OPENAI_API_KEY on the API server and restart it to enable investigations.</p>}
@@ -90,6 +91,15 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
       <select id="agent-mode" value={mode} disabled={busy} onChange={(event) => setMode(event.target.value as "investigate" | "edit")}>
         <option value="investigate">Investigate (read-only)</option><option value="edit">Propose edits (isolated draft)</option>
       </select>
+      {mode === "edit" && <>
+        <label htmlFor="agent-tests">Agent test permission</label>
+        <select id="agent-tests" value={testProfile} disabled={busy} onChange={(event) => setTestProfile(event.target.value as typeof testProfile)}>
+          <option value="">No execution — review draft first</option>
+          <option value="python-unittest">Allow Python unittest and bounded retries</option>
+          <option value="node-test">Allow Node tests and bounded retries (JS/TS)</option>
+        </select>
+        {testProfile && <p className="muted">Starting this run permits execution of imported and generated source in the selected sandbox profile. No network or dependency installs. Test output may be sent to the model to guide repairs.</p>}
+      </>}
       <label htmlFor="investigation-task">{mode === "edit" ? "Change request" : "Investigation task"}</label>
       <textarea id="investigation-task" rows={3} maxLength={1500} value={task} disabled={busy || !index?.configured}
         onChange={(event) => setTask(event.target.value)} placeholder={mode === "edit" ? "Add validation to the login input and prepare a small diff…" : "Trace authentication and identify validation gaps…"} />
@@ -104,13 +114,13 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
     </aside><div className="agent-detail">
       {!selectedId ? <p className="muted">Start an investigation to inspect its plan and execution trace.</p> : !current ? <p role="status" className="muted">Loading trace…</p> : <>
         <div className="agent-run-heading"><h3>{current.task}</h3><span className="ask-state">{current.status}</span></div>
-        <p className="ask-meta">{current.model} · {counts.model}/{current.mode === "edit" ? 11 : 6} model decisions · {counts.reads + counts.writes}/{current.mode === "edit" ? 10 : 5} tool attempts ({counts.writes} writes)</p>
+        <p className="ask-meta">{current.model} · {counts.model}/{current.test_profile ? 21 : current.mode === "edit" ? 11 : 6} model decisions · {counts.reads + counts.writes + counts.executions}/{current.test_profile ? 20 : current.mode === "edit" ? 10 : 5} tool attempts ({counts.writes} writes, {counts.executions} executions)</p>
         {current.error_message && <p className="notice warning" role="status">{current.error_message}</p>}
         {!!current.plan.length && <div className="agent-plan"><p className="eyebrow">PLAN</p><ol>{current.plan.map((step, i) => <li key={i}>{step}</li>)}</ol></div>}
         <div className="agent-trace" aria-live="polite"><p className="eyebrow">EXECUTION TRACE</p>
           {!current.steps.length && <p role="status" className="muted">Waiting for the first model step…</p>}
           <ol>{current.steps.map((step) => <li key={step.number}>
-            <div><span className={`trace-kind ${step.kind}`}>{step.kind === "model" ? "MODEL · REMOTE" : step.action === "search_code" ? "READ · REMOTE EMBEDDING" : step.kind === "write" ? "DRAFT WRITE" : "READ"}</span><strong>{step.action.replaceAll("_", " ")}</strong>
+            <div><span className={`trace-kind ${step.kind}`}>{step.kind === "model" ? "MODEL · REMOTE" : step.action === "search_code" ? "READ · REMOTE EMBEDDING" : step.kind === "write" ? "DRAFT WRITE" : step.kind === "execute" ? "EXECUTION · SANDBOX" : "READ"}</span><strong>{step.action.replaceAll("_", " ")}</strong>
               <span className="trace-status">{step.status} {step.status !== "running" && `· ${(step.duration_ms / 1000).toFixed(2)} s`}</span></div>
             {step.summary && <p>{step.summary}</p>}</li>)}</ol></div>
         {current.mode === "edit" && <WorkspaceReview key={current.id} repositoryId={repositoryId} run={current} />}

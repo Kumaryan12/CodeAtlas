@@ -54,6 +54,10 @@ CodeAtlas/
 │   │   │   │   ├── evaluate.py
 │   │   │   │   ├── hybrid.py
 │   │   │   │   └── vectors.py
+│   │   │   ├── sandbox/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── docker.py
+│   │   │   │   └── service.py
 │   │   │   ├── schemas/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── agent.py
@@ -81,7 +85,8 @@ CodeAtlas/
 │   │   │   │   ├── 0002_import_references.py
 │   │   │   │   ├── 0003_semantic_index.py
 │   │   │   │   ├── 0004_agent_runs.py
-│   │   │   │   └── 0005_draft_workspaces.py
+│   │   │   │   ├── 0005_draft_workspaces.py
+│   │   │   │   └── 0006_test_executions.py
 │   │   │   ├── env.py
 │   │   │   └── script.py.mako
 │   │   ├── tests/
@@ -100,6 +105,8 @@ CodeAtlas/
 │   │   │   ├── test_qa.py
 │   │   │   ├── test_repositories.py
 │   │   │   ├── test_retrieval.py
+│   │   │   ├── test_sandbox.py
+│   │   │   ├── test_sandbox_live.py
 │   │   │   └── test_workspace.py
 │   │   ├── alembic.ini
 │   │   ├── pyproject.toml
@@ -125,6 +132,7 @@ CodeAtlas/
 │       │   │   ├── repository-ask.tsx
 │       │   │   ├── repository-explorer.tsx
 │       │   │   ├── retrieval-diagnostics.tsx
+│       │   │   ├── test-review.tsx
 │       │   │   ├── workspace-review.tsx
 │       │   │   └── workspace.tsx
 │       │   └── lib/
@@ -134,12 +142,14 @@ CodeAtlas/
 │       │       ├── highlight.ts
 │       │       ├── proxy-policy.ts
 │       │       ├── qa.ts
-│       │       └── repositories.ts
+│       │       ├── repositories.ts
+│       │       └── test-runs.ts
 │       ├── tests/
 │       │   ├── agent.test.ts
 │       │   ├── explorer.test.ts
 │       │   ├── graph.test.ts
-│       │   └── qa.test.ts
+│       │   ├── qa.test.ts
+│       │   └── test-runs.test.ts
 │       ├── eslint.config.mjs
 │       ├── next-env.d.ts
 │       ├── next.config.ts
@@ -151,6 +161,11 @@ CodeAtlas/
 │   ├── evaluation-m4-offline.json
 │   ├── structure.md
 │   └── verification.md
+├── sandbox/
+│   ├── node.Dockerfile
+│   ├── node_runner.mjs
+│   ├── python.Dockerfile
+│   └── unittest_runner.py
 ├── .env.example
 ├── .gitignore
 ├── README.md

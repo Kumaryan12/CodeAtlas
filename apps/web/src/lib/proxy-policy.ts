@@ -10,9 +10,10 @@ export function allowedRepositoryPath(parts: string[], method: string): boolean 
   if (method !== "POST" && method !== "GET") return false;
   if (parts.length === 0) return true;
   if (!uuid.test(parts[0])) return false;
+  if (method === "POST" && parts.length === 4) return parts[1] === "agent-runs" && uuid.test(parts[2]) && parts[3] === "test-runs";
   if (method === "POST") return parts.length === 2 && ["index", "ask", "retrieve", "agent-runs"].includes(parts[1]);
   if (parts.length === 1) return true;
   if (parts.length === 2) return ["files", "symbols", "graph", "index", "agent-runs"].includes(parts[1]);
-  if (parts.length === 4) return parts[1] === "agent-runs" && uuid.test(parts[2]) && parts[3] === "diff";
+  if (parts.length === 4) return parts[1] === "agent-runs" && uuid.test(parts[2]) && ["diff", "test-runs"].includes(parts[3]);
   return parts.length === 3 && ["files", "agent-runs"].includes(parts[1]) && uuid.test(parts[2]);
 }

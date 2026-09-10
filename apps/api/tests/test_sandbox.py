@@ -308,3 +308,65 @@ def test_restart_preserves_completed_tests_and_marks_pending_interrupted(api, fa
             next(row for row in results if row.status == "interrupted").error_code
             == "server_restarted"
         )
+
+
+def test_sandbox_failure_is_sanitized_and_releases_lock(enabled, fake_download, monkeypatch):
+    api = enabled
+    prefix = imported(api)
+    api.app.dependency_overrides[investigator_dependency] = lambda: ScriptedInvestigator(
+        [decision("view_diff"), decision("run_tests"), decision("finish")]
+    )
+    monkeypatch.setattr(
+        service,
+        "run_container",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("host-secret-123")),
+    )
+    response = api.post(
+        prefix + "/agent-runs",
+        json={"task": "Test", "mode": "edit", "test_profile": "python-unittest"},
+    )
+    url = prefix + "/agent-runs/" + response.json()["id"]
+    tests = api.get(url + "/test-runs")
+    assert tests.json()[0]["status"] == "error"
+    assert tests.json()[0]["error_code"] == "sandbox_failed"
+    assert "host-secret-123" not in tests.text
+    assert api.app.state.ai_lock.acquire(blocking=False)
+    api.app.state.ai_lock.release()
+
+
+def test_execution_decision_schema_is_opt_in(monkeypatch):
+    import httpx
+    from test_qa import mock_http
+
+    from codeatlas.ai.investigator import OpenAIInvestigator
+    from codeatlas.core.config import Settings
+
+    seen = []
+
+    def handler(request):
+        payload = json.loads(request.content)
+        seen.append(payload["text"]["format"]["schema"]["properties"]["action"]["enum"])
+        result_data = draft_decision("finish").model_dump()
+        result_data["arguments"] = dict.fromkeys(
+            payload["text"]["format"]["schema"]["properties"]["arguments"]["required"]
+        )
+        result = json.dumps(result_data)
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "output": [
+                    {"type": "message", "content": [{"type": "output_text", "text": result}]}
+                ],
+            },
+        )
+
+    mock_http(monkeypatch, handler)
+    provider = OpenAIInvestigator(Settings(_env_file=None, openai_api_key="fixture"))
+    for state in [
+        {"mode": "investigate"},
+        {"mode": "edit"},
+        {"mode": "edit", "test_profile": "node-test"},
+    ]:
+        provider.decide(state)
+    assert ["run_tests" in actions for actions in seen] == [False, False, True]
