@@ -324,8 +324,8 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 7. **Sandboxed tests — implemented:** opt-in fixed profiles, container limits, versioned output, and up to two repair/retest iterations.
 8. **Approved pull requests — next:** explicit human approval before remote changes.
 
-## Claude and the proposed MCP boundary
+## Claude and MCP snapshot tools
 
 Claude uses the [Messages API](https://platform.claude.com/docs/en/api/overview) with [structured JSON outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). The runtime still validates each decision, executes only permitted tools, checks evidence IDs, and enforces budgets. Refusals, truncated responses, and invalid decisions fail safely. Claude has [no native embedding model](https://platform.claude.com/docs/en/build-with-claude/embeddings), so retrieval embeddings remain separately configured. Switching reasoning providers does not invalidate existing embeddings.
 
-The [MCP integration design](docs/mcp-architecture.md) places an MCP client alongside local tools inside the agent runtime. **MCP is planned, not implemented.** The current agent executes its Python tools directly. Live Claude quality remains unmeasured until credentials are configured and representative tasks are evaluated.
+The [MCP integration](docs/mcp-architecture.md) connects the agent runtime to a bundled, repository-scoped stdio server for file listing, source reads, symbol lookup, and dependency inspection. Enable `CODEATLAS_READ_TOOL_TRANSPORT=mcp` and restart the API; the trace labels these reads **READ · MCP**. Search, draft edits, and approved Docker tests retain their local handlers. The six MCP tests include a real subprocess agent workflow and require no model key. Live Claude quality remains unmeasured until credentials are configured and representative tasks are evaluated.

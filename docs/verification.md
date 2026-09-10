@@ -251,3 +251,11 @@ This record describes local verification, not a production-readiness certificati
 - Ruff lint/format, frontend lint/type checks, **21 frontend tests**, production build, and `git diff --check` passed. Local API and frontend restarted with no active runs/tests; HTTP checks through the frontend proxy verified Claude model/configuration status.
 - No live Claude calls were made: the Anthropic key is not configured. No claim of live answer/edit quality or browser visual verification. Existing upstream test deprecation warnings remain.
 - MCP client/server connections are a design proposal in `mcp-architecture.md`, not an implemented or interoperability-tested capability.
+
+## MCP read transport checkpoint — 2026-09-10
+
+- Official MCP Python SDK 2.2.0 installed and locked with its dependencies; dependency consistency check passed. Bundled client/server negotiate protocol 2026-07-28. No new public HTTP endpoint.
+- Full backend suite: **201 passed, 6 opt-in Docker tests skipped**. After adding the discovery-rejection test, the focused MCP suite passed **6 tests** (202 backend tests in total across the checked suites). These cover actual stdio agent execution, discovery, strict arguments, cross-repository rejection, malformed/forged evidence, evidence ID remapping, failure traces without fallback, and timeout/process cleanup.
+- A read-only check against the existing local PostgreSQL database passed file listing and source reading through the actual stdio client/server, including citation verification. No snapshot source was changed. The child received only the database URL as application-specific environment configuration.
+- Frontend lint, type checking, **21 tests**, and production build passed. Ruff lint/format and diff whitespace checks passed. Trace UI now labels MCP reads. No browser visual verification or live Claude-quality result is claimed.
+- MCP is enabled in the ignored local environment and `.env.example`; the Settings fallback stays local. Remote servers, external-host interoperability, MCP edits/testing, and Git writes remain unimplemented. One pre-existing upstream AnyIO test warning remains.

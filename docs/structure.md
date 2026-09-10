@@ -42,6 +42,11 @@ CodeAtlas/
 │   │   │   │   ├── github.py
 │   │   │   │   ├── runner.py
 │   │   │   │   └── worker.py
+│   │   │   ├── mcp/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── client.py
+│   │   │   │   ├── contracts.py
+│   │   │   │   └── server.py
 │   │   │   ├── models/
 │   │   │   │   ├── __init__.py
 │   │   │   │   └── repository.py
@@ -99,6 +104,7 @@ CodeAtlas/
 │   │   │   │       └── view.jsx
 │   │   │   ├── conftest.py
 │   │   │   ├── test_anthropic.py
+│   │   │   ├── test_mcp.py
 │   │   │   ├── test_agent.py
 │   │   │   ├── test_archive.py
 │   │   │   ├── test_dependencies.py

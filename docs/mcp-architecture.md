@@ -1,6 +1,6 @@
 # Claude and MCP in CodeAtlas
 
-Status: Claude reasoning adapter implemented; MCP client/server integration proposed.
+Status: the bundled read-only MCP server and agent client are implemented. Claude reasoning is integrated; live model quality still awaits credentials and evaluation.
 
 ```text
                    Claude Messages API
@@ -10,36 +10,71 @@ Status: Claude reasoning adapter implemented; MCP client/server integration prop
                 CodeAtlas agent runtime
           validation, permissions, budgets, trace
                   /                     \
-          Local Python tools        MCP client (planned)
+          Local Python tools        MCP client
+          search / draft / tests         |
+                                 Fixed stdio subprocess
                                          |
-                                 MCP server(s) (planned)
-                                  /       |       \
-                             Git reads  Repo DB  Testing
-                                                   |
-                                          Existing Docker sandbox
+                               CodeAtlas snapshot server
+                                         |
+                            Scoped read services → Repo DB
 ```
 
-The runtime is the host application. Claude proposes an action; the runtime decides whether it is permitted, calls a local handler or an MCP tool, bounds the result, records it, and includes the observation in the next model request. MCP standardizes the client/server tool interface; it does not provide the reasoning model, authorization policy, or execution sandbox. See the official [MCP architecture](https://modelcontextprotocol.io/docs/learn/architecture).
+The runtime is the host application. Claude proposes an action; the runtime validates it and routes four approved reads through MCP when enabled. The client discovers and checks the exact tool registry, calls the mapped namespaced tool, validates the response, and returns the observation to the model loop. The server independently scopes every query to its startup repository ID. Neither tool arguments nor model output can change that scope, launch another command, or select another server.
 
-A single CodeAtlas MCP server could expose all three services. Separate servers are also possible, with a client connection for each. Local tools do not have to pass through MCP. Avoid exposing duplicate local/MCP versions of the same tool to the model without a reason.
+## Enable and demonstrate
 
-## First integration scope
+Install the updated dependencies using the existing locked installation workflow:
 
-Begin with a local, read-only repository server: bounded file listing, exact symbol lookup, source reads, and dependency inspection backed by existing scoped services. The server must independently enforce the selected repository boundary. Do not expose raw SQL, arbitrary paths, shell commands, or unrestricted network requests. Semantic search can follow using the separately configured embedding service.
+```sh
+apps/api/.venv/bin/pip install -r apps/api/requirements-dev.lock
+apps/api/.venv/bin/pip install --no-deps -e 'apps/api[dev]'
+```
 
-The client should map explicitly approved, namespaced tool names to existing application actions, validate arguments and returned data, enforce time/output limits, and persist sanitized tool outcomes in the run trace. Server discovery must not automatically grant every advertised capability. Source text and tool descriptions/results are untrusted input. Confirm SDK/client protocol compatibility before implementation.
+Set `CODEATLAS_READ_TOOL_TRANSPORT=mcp` in the root `.env`, then restart the API. The example environment enables it; the Settings fallback is `local` for compatibility. Set `local` explicitly to use the original direct handlers. There is no silent fallback when MCP fails.
 
-Testing is a later capability: preserve explicit per-run profile authorization, current-diff review, workspace digest checks, the global three-attempt limit, fixed image/command selection, and Docker isolation. Passing testing through MCP must not grant host execution. Git reads can expose scoped metadata; commits, pushes, and PR creation require a separately defined write workflow. The current imported snapshot is not a complete Git checkout.
+With the Anthropic key configured, start an investigation asking the agent to inspect a particular implementation. File, symbol, and dependency reads appear as **READ · MCP** in the trace. The trace's `transport` field records `mcp` or `local` independently of the action name, including failed reads. Existing traces without the field remain readable.
 
-## Model and retrieval calls today
+Without a model key, run the protocol and scripted-agent demonstration:
 
-- Answers and agent decisions: Anthropic Messages API, default `claude-sonnet-5`, server key `CODEATLAS_ANTHROPIC_API_KEY`.
-- Source/query embeddings: OpenAI embedding endpoint, default `text-embedding-3-small`, separate server key `CODEATLAS_OPENAI_API_KEY`.
-- Graph construction: deterministic parsers and import resolution, no model call.
-- Local tool execution: application Python code; approved test execution uses Docker.
+```sh
+apps/api/.venv/bin/pytest apps/api/tests/test_mcp.py -q
+```
 
-An Anthropic key alone enables file/symbol/dependency investigation and drafts. RAG questions and semantic search also require embeddings and a ready index. `GET /index` exposes separate reasoning and embedding availability; it never returns secrets. Existing `configured` and `provider` fields describe embeddings for compatibility.
+This starts actual stdio subprocesses, performs all four reads, validates evidence, and checks a completed agent trace. Other tests exercise the real in-memory MCP protocol for hostile requests and malformed result handling. An unresponsive stdio subprocess is timed out and checked for termination.
 
-Configure `CODEATLAS_REASONING_PROVIDER=anthropic`. Omit `CODEATLAS_ANSWER_MODEL` for the provider default, or set a compatible Claude model explicitly. An existing GPT model override must be removed or replaced when switching. `openai` remains an explicit reasoning option; there is no automatic cross-provider fallback.
+## Tool contract
 
-Mocked API and scripted control-flow tests establish integration mechanics. They do not establish live model quality, prompt-injection resistance across arbitrary inputs, or MCP interoperability. Those need separate live evaluations after each capability is connected.
+| MCP name | Arguments inside `arguments` | Bound |
+| --- | --- | --- |
+| `codeatlas_list_files` | `prefix`, `offset` | 20 source paths per page |
+| `codeatlas_find_symbol` | `query` | 20 exact, case-sensitive symbol matches |
+| `codeatlas_read_file` | `file_id`, `start_line`, `end_line` | 120 lines / 6000 bytes |
+| `codeatlas_inspect_dependencies` | `file_id` | 10 imports and 10 importers |
+
+For example, a tool call uses `{"arguments":{"prefix":"apps/","offset":0}}`. Discovery exposes typed schemas and read-only annotations. The annotations describe intent; fixed registration, strict argument validation, and scoped queries enforce the application boundary.
+
+The server returns a bounded structured envelope with repository ID, result, and optional source evidence or sanitized error. The client checks response shape, snapshot identity, referenced file membership, and paths. For source evidence, it verifies the exact lines against the immutable local snapshot before allocating an agent-wide evidence ID. This preserves citation integrity across multiple MCP calls and local semantic search. Returned metadata alone does not establish a supported implementation claim.
+
+Each call launches the bundled server, discovers its four tools, performs one read, and closes the connection/process. This costs process startup time but keeps lifecycle and scope explicit. The client limits connection/discovery/call work to 15 seconds; SDK cleanup may add a short termination grace period. Structured result envelopes are capped at 32 KB before the bundled server returns them and checked again by the client. Existing overall agent/tool/evidence budgets still apply.
+
+## Standalone local server
+
+An external local MCP host can launch the same server using:
+
+```sh
+apps/api/.venv/bin/python -m codeatlas.mcp.server --repository SNAPSHOT_UUID
+```
+
+Supply `CODEATLAS_DATABASE_URL` in that process's environment. The module does **not** load `.env`. Select an existing ready or partial snapshot UUID. Use an absolute Python executable path when configuring another host.
+
+The runtime uses its own Python executable and fixed module/working directory. It passes only the database URL as application configuration, plus the SDK's minimal inherited platform environment. AI keys are not forwarded. No API key is needed by the read server.
+
+This is trusted local application code with database access, not an OS-level database isolation boundary. The operator chooses the snapshot; remote authentication, multi-tenant authorization, and arbitrary third-party servers are not implemented. Do not deploy this stdio adapter as an unauthenticated remote database service. Imported source is treated as data and never executed by these tools.
+
+## Protocol and remaining scope
+
+The official [Python SDK](https://py.sdk.modelcontextprotocol.io/client/) is pinned to **2.2.0** in the lockfile; the bundled client/server pair is tested with MCP **2026-07-28**. Other external hosts and older protocol versions have not been interoperability-tested.
+
+Search still uses the local embedding service. Draft edits and approved tests keep their existing local handlers and permissions. MCP does not expose Git writes, raw SQL, arbitrary paths, shell commands, remote URLs, editing, or Docker execution in this milestone. Later integrations must preserve the current approval, diff-review, workspace-digest, retry, and sandbox boundaries.
+
+Claude answers and agent decisions use the separately configured reasoning provider. OpenAI source/query embeddings remain independent. Graph construction stays deterministic. MCP introduces no additional LLM call by itself.

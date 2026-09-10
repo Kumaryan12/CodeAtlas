@@ -186,3 +186,7 @@ Technical debt: source/config/dependency completeness, stronger multi-tenant iso
 ## Next milestone
 
 Milestone 8 is explicit approval of an exact diff followed by optional GitHub branch/commit/push/PR creation. It must bind approval to the reviewed version and report test coverage/limitations. Begin only after the user's next instruction.
+
+## MCP read transport
+
+`mcp/server.py` wraps the existing read services with four namespaced, typed tools. `mcp/client.py` fixes the command and snapshot, checks discovery/results, and merges verified evidence into the run. `mcp/contracts.py` owns the allowlist and response models. `agents/runner.py` selects transport via server configuration and persists it on each tool trace step. See [architecture and operation](mcp-architecture.md) for setup, boundaries, protocol version, and tests. Each tool call has a fresh stdio process; pooling is deferred until measured latency justifies a longer-lived lifecycle.
