@@ -49,3 +49,19 @@ test("cycles share a layer without overlap or infinite traversal", () => {
   assert.ok(layout[2].position.x > layout[0].position.x);
   assert.deepEqual(layoutGraph([], [], []), []);
 });
+
+test("dense layers pack without overlapping cards or reversing import direction", () => {
+  const sources = Array.from({ length: 24 }, (_, index) => node(`source-${index}`));
+  const nodes = [...sources, node("shared")];
+  const edges = sources.map((source) => edge(source.id, "shared"));
+  const layout = layoutGraph(nodes, edges, []);
+  const sink = layout.find((item) => item.id === "shared")!;
+  assert.ok(layout.filter((item) => item.id !== "shared").every((item) => item.position.x < sink.position.x));
+  for (let i = 0; i < layout.length; i++) for (let j = i + 1; j < layout.length; j++) {
+    const a = layout[i].position, b = layout[j].position;
+    assert.ok(Math.abs(a.x - b.x) >= 250 || Math.abs(a.y - b.y) >= 110, "file cards must not overlap");
+  }
+  const ys = layout.map((item) => item.position.y);
+  assert.ok(Math.max(...ys) - Math.min(...ys) < 2000, "a dense layer should not become one tall stack");
+  assert.deepEqual(layoutGraph([...nodes].reverse(), [...edges].reverse(), []), layout);
+});

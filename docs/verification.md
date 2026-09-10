@@ -234,3 +234,12 @@ This record describes local verification, not a production-readiness certificati
 3. For autonomous repairs, configure the provider key, start a new editing run, and explicitly choose the profile under **Agent test permission**. Use a small fixture with standard-library tests and a known fix. Confirm diff review precedes execution and the trace distinguishes execution from reads/writes.
 4. Inspect a failing result followed by an edit/retest. Earlier-draft results must remain labeled; a successful agent finish must not conceal failing test results. Three test attempts exhaust the shared manual/agent budget.
 5. Run the opt-in Docker suite with `CODEATLAS_TEST_DOCKER=1 apps/api/.venv/bin/pytest apps/api/tests/test_sandbox_live.py -q`. It includes an intentional 30-second timeout. Never execute those fixture programs directly on the host.
+
+## Architecture UI refresh (2026-09-10)
+
+- Added a dependency-map heading, snapshot summary cards, directory shortcuts, overview/neighborhood controls, reset layout, fit-map/find-selection actions, and an optional language-colored minimap.
+- Redesigned file cards with language badges, clearer filename/path hierarchy, parser-warning markers, and visible-link counts. Selected-file connections are emphasized while unrelated content is subdued. The inspector now uses compact metadata and collapsible imports/dependents/unresolved sections.
+- Dense graph layers pack into two columns; shorter layers are centered. A regression test verifies that card rectangles do not overlap, import direction remains left-to-right across layers, and positions are deterministic. Existing graph filters and the 200-node limit remain covered.
+- **21 frontend tests passed**, plus ESLint, TypeScript, the production Webpack build, and `git diff --check`. No backend schema or dependency changes.
+- Browser selection and documented connection troubleshooting still found no available browser. Visual appearance, keyboard interactions and responsive rendering remain unverified in a live browser.
+- Confirmed locally without printing credentials: provider integration exists, but no OpenAI API key is configured. Configured model names are `gpt-4.1-mini` for answers/agent decisions and `text-embedding-3-small` for retrieval embeddings. The architecture map itself uses deterministic static analysis.

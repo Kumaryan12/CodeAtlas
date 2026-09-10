@@ -50,11 +50,20 @@ export function layoutGraph(nodes: GraphNode[], edges: GraphEdge[], cycles: stri
       if (degree.get(target) === 0) queue.push(target);
     }
   }
+  const counts = new Map<number, number>();
+  for (const node of nodes) {
+    const column = rank.get(group.get(node.id)!) ?? 0;
+    counts.set(column, (counts.get(column) ?? 0) + 1);
+  }
+  // Pack busy layers into two columns and center shorter layers to avoid tall sparse maps.
+  const stride = Math.max(0, ...counts.values()) > 10 ? 660 : 370;
   const rows = new Map<number, number>();
   return [...nodes].sort((a, b) => a.file.localeCompare(b.file)).map((node) => {
     const column = rank.get(group.get(node.id)!) ?? 0;
     const row = rows.get(column) ?? 0;
     rows.set(column, row + 1);
-    return { id: node.id, position: { x: column * 310, y: row * 100 } };
+    const columns = counts.get(column)! > 10 ? 2 : 1;
+    const height = Math.ceil(counts.get(column)! / columns);
+    return { id: node.id, position: { x: column * stride + (row % columns) * 285, y: (Math.floor(row / columns) - (height - 1) / 2) * 140 } };
   });
 }

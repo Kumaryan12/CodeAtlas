@@ -1,33 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Background, Controls, MarkerType, MiniMap, Position, ReactFlow, useNodesState } from "@xyflow/react";
+import { GraphCanvas, languageColors, languageLabels } from "./graph-canvas";
 import { request } from "@/lib/repositories";
-import { layoutGraph, visibleGraph, type DependencyGraph } from "@/lib/graph";
-
-function GraphCanvas({ graph, visible, activeId, onSelect }: {
-  graph: DependencyGraph; visible: ReturnType<typeof visibleGraph>; activeId: string | null; onSelect: (id: string) => void;
-}) {
-  const positions = new Map(layoutGraph(visible.nodes, visible.edges, graph.cycles).map((item) => [item.id, item.position]));
-  const [nodes, , onNodesChange] = useNodesState(visible.nodes.map((node) => ({
-    id: node.id, position: positions.get(node.id)!, sourcePosition: Position.Right, targetPosition: Position.Left,
-    data: { label: <div className="graph-node-label"><strong>{node.label}</strong><small>{node.file}</small><span>{node.language} · {node.symbol_count} symbols</span></div> },
-    style: { width: 240 }, ariaLabel: `${node.file}, ${node.language}, ${node.symbol_count} symbols`,
-  })));
-  const edges = visible.edges.map((edge) => ({
-    id: edge.id, source: edge.source, target: edge.target,
-    markerEnd: { type: MarkerType.ArrowClosed, color: edge.in_cycle ? "#e5b578" : "#899fd4" },
-    style: { stroke: edge.in_cycle ? "#e5b578" : "#899fd4", strokeDasharray: edge.evidence.some((item) => item.resolution === "python_inferred_root") ? "5 4" : undefined },
-  }));
-  return <div className="graph-canvas" aria-label="Repository import graph">
-    <ReactFlow nodes={nodes.map((node) => ({ ...node, selected: node.id === activeId }))} edges={edges}
-      onNodesChange={onNodesChange} onNodeClick={(_, node) => onSelect(node.id)}
-      nodesConnectable={false} edgesReconnectable={false} deleteKeyCode={null}
-      fitView minZoom={0.05} maxZoom={2} colorMode="dark" onlyRenderVisibleElements>
-      <Background gap={22} size={1} /><Controls showInteractive={false} /><MiniMap pannable zoomable />
-    </ReactFlow>
-  </div>;
-}
+import { visibleGraph, type DependencyGraph } from "@/lib/graph";
 
 export function DependencyGraphView({ repositoryId, activeId, onSelect, onOpenCode }: {
   repositoryId: string; activeId: string | null; onSelect: (id: string) => void; onOpenCode: (id: string) => void;
@@ -38,6 +14,7 @@ export function DependencyGraphView({ repositoryId, activeId, onSelect, onOpenCo
   const [language, setLanguage] = useState("");
   const [focus, setFocus] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [layoutVersion, setLayoutVersion] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     void request<DependencyGraph>(`/${repositoryId}/graph`, { signal: controller.signal })
@@ -54,38 +31,53 @@ export function DependencyGraphView({ repositoryId, activeId, onSelect, onOpenCo
   const incoming = graph.edges.filter((edge) => edge.target === activeId);
   const unresolved = graph.unresolved.filter((issue) => issue.source === activeId);
   const cycle = graph.cycles.find((members) => activeId && members.includes(activeId));
+  const directories = [...new Set(graph.nodes.map((node) => node.file.includes("/") ? node.file.split("/")[0] + "/" : ""))].filter(Boolean).sort();
+  const resetFilters = () => { setQuery(""); setLanguage(""); setFocus(false); };
   return <section className="architecture-view" aria-label="Architecture">
-    <div className="graph-summary"><strong>{graph.nodes.length} files</strong><span>{graph.edges.length} local import edges</span><span>{graph.unresolved.length} unresolved observations</span><span>{graph.cycles.length} cycle groups</span></div>
-    <div className="graph-toolbar">
-      <label>Filter path<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g. apps/api/" /></label>
-      <label>Language<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="">All languages</option><option value="python">Python</option><option value="javascript">JavaScript</option><option value="typescript">TypeScript</option></select></label>
-      <label className="graph-focus"><input type="checkbox" checked={focus} disabled={!activeId} onChange={(event) => setFocus(event.target.checked)} />Selected file + direct neighbors</label>
+    <header className="architecture-heading"><div><p className="eyebrow">REPOSITORY STRUCTURE</p><h2>Dependency map</h2><p className="muted">Explore how files connect. Select a node to follow its imports.</p></div><span className="graph-analysis-badge"><i />Static analysis</span></header>
+    <div className="graph-summary">
+      <div><span>Source files</span><strong>{graph.nodes.length.toLocaleString()}</strong><small>across the snapshot</small></div>
+      <div><span>Connections</span><strong>{graph.edges.length.toLocaleString()}</strong><small>resolved local imports</small></div>
+      <div><span>Unresolved</span><strong>{graph.unresolved.length.toLocaleString()}</strong><small>external or unlocated imports</small></div>
+      <div className={graph.cycles.length ? "graph-cycle-stat" : ""}><span>Import cycles</span><strong>{graph.cycles.length.toLocaleString()}</strong><small>groups of connected files</small></div>
     </div>
-    <div className="graph-display-status" role="status">Showing {visible.nodes.length} of {visible.total} matching files ({graph.nodes.length} total). {visible.total > visible.nodes.length && "Canvas capped at 200 files; narrow the filter or focus on a file."}</div>
+    <div className="graph-toolbar">
+      <label className="graph-search">Find a file<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by path or filename…" /></label>
+      <label>Language<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="">All languages</option><option value="python">Python</option><option value="javascript">JavaScript</option><option value="typescript">TypeScript</option></select></label>
+      <div className="graph-scope" role="group" aria-label="Graph scope"><button aria-pressed={!focus} onClick={() => setFocus(false)}>Overview</button><button aria-pressed={focus} disabled={!activeId} onClick={() => setFocus(true)}>Neighborhood</button></div>
+      <button className="graph-reset" onClick={() => setLayoutVersion((value) => value + 1)}>Reset layout</button>
+    </div>
+    {!!directories.length && <div className="graph-directories" aria-label="Directory shortcuts"><span>JUMP TO</span>{directories.slice(0, 8).map((directory) => <button key={directory} aria-pressed={query === directory} onClick={() => setQuery(query === directory ? "" : directory)}>{directory}</button>)}</div>}
+    <div className="graph-display-status"><span role="status"><strong>{visible.nodes.length}</strong> of {visible.total} matching files · {visible.edges.length} visible connections{focus && " · selected file + direct neighbors"}</span>{(query || language || focus) && <button onClick={resetFilters}>Clear filters</button>}</div>
+    {visible.total > visible.nodes.length && <p className="notice warning">The canvas shows the first 200 matching files. Narrow the path or choose Neighborhood for a closer view.</p>}
     <div className="graph-layout">
-      {visible.nodes.length ? <GraphCanvas key={visible.nodes.map((node) => node.id).join(",")} graph={graph} visible={visible} activeId={activeId} onSelect={onSelect} />
-        : <p className="panel-empty">No files match these filters.</p>}
+      {visible.nodes.length ? <GraphCanvas key={`${layoutVersion}:${visible.nodes.map((node) => node.id).join(",")}`} graph={graph} visible={visible} activeId={activeId} onSelect={onSelect} />
+        : <div className="graph-empty"><span>⌕</span><h3>No matching files</h3><p className="muted">Try a different path or expand the graph scope.</p><button className="secondary-button" onClick={resetFilters}>Clear filters</button></div>}
       <aside className="dependency-inspector" aria-label="Selected file dependencies">
         {selected ? <>
-          <p className="eyebrow">FILE / {selected.language}</p><h3>{selected.file}</h3><p>{selected.symbol_count} symbols · file node</p>
+          <div className="inspector-heading"><p className="eyebrow">FILE DETAILS</p><span className="graph-file-icon" style={{ color: languageColors[selected.language] }}>{languageLabels[selected.language] ?? "{}"}</span></div>
+          <h3>{selected.label}</h3><p className="inspector-path">{selected.file}</p>
+          <div className="inspector-counts"><span><strong>{selected.symbol_count}</strong> symbols</span><span><strong>{outgoing.length + incoming.length}</strong> links</span></div>
+          {!visible.nodes.some((node) => node.id === selected.id) && <p className="notice warning">This file is outside the current filters.</p>}
           <button className="primary-button" onClick={() => onOpenCode(selected.id)}>Open source & symbols ↗</button>
           {selected.warning && <p className="notice warning">{selected.warning}</p>}
           {cycle && <p className="notice warning">Part of a {cycle.length}-file import cycle.</p>}
-          <h4>Imports · {outgoing.length}</h4>
+          <details className="inspector-section" open><summary>Imports <span>{outgoing.length}</span></summary>
           {outgoing.slice(0, 100).map((edge) => <div key={edge.id} className="dependency-item"><button onClick={() => onSelect(edge.target)}>{byId.get(edge.target)?.file}</button>
             <small>{edge.evidence.slice(0, 3).map((item) => `${item.specifier}${item.line ? ` : L${item.line}` : ""} (${item.resolution.replaceAll("_", " ")})`).join("; ")}</small></div>)}
           {!outgoing.length && <p className="muted">No resolved local imports.</p>}
-          <h4>Imported by · {incoming.length}</h4>
+          </details><details className="inspector-section" open><summary>Imported by <span>{incoming.length}</span></summary>
           {incoming.slice(0, 100).map((edge) => <div key={edge.id} className="dependency-item"><button onClick={() => onSelect(edge.source)}>{byId.get(edge.source)?.file}</button></div>)}
           {!incoming.length && <p className="muted">No recorded incoming imports.</p>}
-          <h4>Unresolved · {unresolved.length}</h4>
+          </details><details className="inspector-section"><summary>Unresolved <span>{unresolved.length}</span></summary>
           {unresolved.slice(0, 100).map((item, index) => <div className="dependency-item" key={index}><code>{item.specifier}</code><small>{item.reason.replaceAll("_", " ")}{item.line ? ` · L${item.line}` : ""}</small>
             {!!item.candidates.length && <small>Candidates: {item.candidates.join(", ")}</small>}</div>)}
+          {!unresolved.length && <p className="muted">No unresolved observations for this file.</p>}</details>
           {[outgoing.length, incoming.length, unresolved.length].some((count) => count > 100) && <p className="muted">Each list shows up to 100 entries. The graph API provides all results.</p>}
         </> : <p className="panel-empty">Select a file node to inspect its imports, dependents, and symbols.</p>}
       </aside>
     </div>
-    <p className="graph-legend">Arrow: importer → dependency · dashed: inferred Python root · amber: cycle edge. This is a static import graph, not a call graph.</p>
+    <footer className="graph-legend"><div><span><i className="legend-line" />Import direction →</span><span><i className="legend-line inferred" />Inferred Python root</span><span><i className="legend-line cycle" />Cycle edge</span></div><p>Static file imports · runtime calls are not represented</p></footer>
     <details className="scan-summary"><summary>Resolution notes{graph.legacy_files ? " · legacy snapshot" : ""}</summary>{graph.notes.map((note) => <p key={note}>{note}</p>)}</details>
   </section>;
 }
