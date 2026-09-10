@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from codeatlas.agents.tools import ReadTools
 from codeatlas.agents.workspace import DraftWorkspace, workspace_digest
 from codeatlas.core.errors import DomainError
+from codeatlas.mcp.contracts import TOOLS as MCP_ACTIONS
 from codeatlas.models.repository import AgentRun, Repository
 from codeatlas.sandbox.service import agent_test
 from codeatlas.schemas.agent import AgentDecision, AgentStep, DraftDecision, ExecutionDecision
@@ -23,9 +24,10 @@ MAX_CONTEXT_BYTES = 48_000
 logger = logging.getLogger("codeatlas.agent")
 
 
-def append_step(session, run, kind, action):
+def append_step(session, run, kind, action, transport=None):
     step = AgentStep(
         number=len(run.steps) + 1,
+        transport=transport,
         kind=kind,
         action=action,
         status="running",
@@ -91,6 +93,11 @@ def tool_summary(action, result):
 def run_loop(session, run, settings, provider):
     repository = session.get(Repository, run.repository_id)
     tools = ReadTools(session, repository, settings, provider)
+    mcp_tools = None
+    if settings.read_tool_transport == "mcp":
+        from codeatlas.mcp.client import MCPReadTools
+
+        mcp_tools = MCPReadTools(tools, settings)
     workspace = DraftWorkspace(session, run, repository) if run.mode == "edit" else None
     execution = workspace is not None and run.test_profile is not None
     max_seconds = 180 if execution else MAX_SECONDS
@@ -200,6 +207,7 @@ def run_loop(session, run, settings, provider):
             if decision.action in ("edit_file", "create_file")
             else "read",
             decision.action,
+            "mcp" if mcp_tools and decision.action in MCP_ACTIONS else "local",
         )
         try:
             if signature in seen and decision.action not in (
@@ -230,7 +238,10 @@ def run_loop(session, run, settings, provider):
             ):
                 result = workspace.execute(decision.action, arguments)
             else:
-                result = tools.execute(decision.action, arguments)
+                if mcp_tools and decision.action in MCP_ACTIONS:
+                    result = mcp_tools.execute(decision.action, arguments)
+                else:
+                    result = tools.execute(decision.action, arguments)
         except DomainError as exc:
             result = {"error": {"code": exc.code, "message": exc.message}}
             finish_step(session, run, step_started, exc.message, exc.code)
@@ -239,7 +250,8 @@ def run_loop(session, run, settings, provider):
                 session,
                 run,
                 step_started,
-                tool_summary(decision.action, result),
+                ("MCP · " if mcp_tools and decision.action in MCP_ACTIONS else "")
+                + tool_summary(decision.action, result),
                 (result.get("error_code") or "tests_failed")
                 if decision.action == "run_tests" and result["status"] != "passed"
                 else None,

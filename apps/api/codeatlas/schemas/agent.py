@@ -56,6 +56,7 @@ class AgentDecision(BaseModel):
 
 
 class AgentStep(BaseModel):
+    transport: Literal["local", "mcp"] | None = None
     number: int
     kind: Literal["model", "read", "write", "execute"]
     action: str

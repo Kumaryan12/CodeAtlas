@@ -50,4 +50,5 @@ class Settings(BaseSettings):
             else "CODEATLAS_OPENAI_API_KEY"
         )
 
+    read_tool_transport: Literal["local", "mcp"] = "local"
     sandbox_enabled: bool = False

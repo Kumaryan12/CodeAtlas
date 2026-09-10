@@ -120,7 +120,7 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
         <div className="agent-trace" aria-live="polite"><p className="eyebrow">EXECUTION TRACE</p>
           {!current.steps.length && <p role="status" className="muted">Waiting for the first model step…</p>}
           <ol>{current.steps.map((step) => <li key={step.number}>
-            <div><span className={`trace-kind ${step.kind}`}>{step.kind === "model" ? "MODEL · REMOTE" : step.action === "search_code" ? "READ · REMOTE EMBEDDING" : step.kind === "write" ? "DRAFT WRITE" : step.kind === "execute" ? "EXECUTION · SANDBOX" : "READ"}</span><strong>{step.action.replaceAll("_", " ")}</strong>
+            <div><span className={`trace-kind ${step.kind}`}>{step.transport === "mcp" ? "READ · MCP" : step.kind === "model" ? "MODEL · REMOTE" : step.action === "search_code" ? "READ · REMOTE EMBEDDING" : step.kind === "write" ? "DRAFT WRITE" : step.kind === "execute" ? "EXECUTION · SANDBOX" : "READ"}</span><strong>{step.action.replaceAll("_", " ")}</strong>
               <span className="trace-status">{step.status} {step.status !== "running" && `· ${(step.duration_ms / 1000).toFixed(2)} s`}</span></div>
             {step.summary && <p>{step.summary}</p>}</li>)}</ol></div>
         {current.mode === "edit" && <WorkspaceReview key={current.id} repositoryId={repositoryId} run={current} />}

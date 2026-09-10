@@ -19,6 +19,7 @@ export type AgentRun = RunSummary & {
   plan: string[];
   steps: {
     number: number;
+    transport?: "local" | "mcp" | null;
     kind: "model" | "read" | "write" | "execute";
     action: string;
     status: "running" | "completed" | "failed";
