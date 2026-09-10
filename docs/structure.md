@@ -128,6 +128,7 @@ CodeAtlas/
 │       │   │   ├── code-viewer.tsx
 │       │   │   ├── dependency-graph.tsx
 │       │   │   ├── file-tree.tsx
+│       │   │   ├── graph-canvas.tsx
 │       │   │   ├── repository-agent.tsx
 │       │   │   ├── repository-ask.tsx
 │       │   │   ├── repository-explorer.tsx
