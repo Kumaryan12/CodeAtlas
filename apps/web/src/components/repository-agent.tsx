@@ -84,8 +84,8 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
     <p className="agent-boundary">{mode === "edit" ? (testProfile ? "Draft mode with tests: up to 20 tools, 21 model decisions and 3 test attempts. The agent may make two repair/retest iterations." : "Draft mode adds source reads, edits, file creation, and diff review in a separate workspace. Up to 10 tools and 11 model decisions. Your snapshot is preserved.") : "Allowed: list files, find symbols, search code, read excerpts, inspect dependencies. Up to 5 read actions and 6 model decisions per run."}</p>
     {error && <p className="notice error" role="alert">{error}</p>}
     <button className="secondary-button" disabled={starting} onClick={() => { setError(""); setRevision((value) => value + 1); }}>Refresh runs and configuration</button>
-    {index && !index.configured && <p className="notice warning">Set CODEATLAS_OPENAI_API_KEY on the API server and restart it to enable investigations.</p>}
-    {index?.configured && index.status !== "ready" && <p className="notice warning">Search requires a semantic index. Build one in Ask for better coverage; file reads and dependency inspection work without it.</p>}
+    {index && !index.reasoning_configured && <p className="notice warning">Set {index.reasoning_key_name} on the API server and restart it to enable investigations.</p>}
+    {index?.reasoning_configured && index.status !== "ready" && <p className="notice warning">Search requires a semantic index. Build one in Ask for better coverage; file reads and dependency inspection work without it.</p>}
     <form className="ask-form agent-form" onSubmit={(event) => void start(event)}>
       <label htmlFor="agent-mode">Run mode</label>
       <select id="agent-mode" value={mode} disabled={busy} onChange={(event) => setMode(event.target.value as "investigate" | "edit")}>
@@ -101,10 +101,10 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
         {testProfile && <p className="muted">Starting this run permits execution of imported and generated source in the selected sandbox profile. No network or dependency installs. Test output may be sent to the model to guide repairs.</p>}
       </>}
       <label htmlFor="investigation-task">{mode === "edit" ? "Change request" : "Investigation task"}</label>
-      <textarea id="investigation-task" rows={3} maxLength={1500} value={task} disabled={busy || !index?.configured}
+      <textarea id="investigation-task" rows={3} maxLength={1500} value={task} disabled={busy || !index?.reasoning_configured}
         onChange={(event) => setTask(event.target.value)} placeholder={mode === "edit" ? "Add validation to the login input and prepare a small diff…" : "Trace authentication and identify validation gaps…"} />
-      <div><p className="muted">The task and inspected source are sent to OpenAI. Runs are saved locally; model usage may incur charges. Runs continue if you leave this view.</p>
-        <button className="primary-button" disabled={busy || !task.trim() || !index?.configured}>{starting ? "Starting…" : busy ? "Investigation running…" : (mode === "edit" ? "Prepare draft" : "Start investigation")}</button></div>
+      <div><p className="muted">The task and inspected source are sent to {index?.reasoning_provider ?? "the reasoning provider"} ({index?.answer_model ?? "configured model"}). Runs are saved locally; model usage may incur charges. Runs continue if you leave this view.</p>
+        <button className="primary-button" disabled={busy || !task.trim() || !index?.reasoning_configured}>{starting ? "Starting…" : busy ? "Investigation running…" : (mode === "edit" ? "Prepare draft" : "Start investigation")}</button></div>
     </form>
     <div className="agent-layout"><aside className="agent-history" aria-label="Investigation history"><p className="eyebrow">RECENT RUNS</p>
       {!history ? <p className="muted" role="status">Loading runs…</p> : !history.items.length ? <p className="muted">No investigations yet.</p> : history.items.map((item) =>

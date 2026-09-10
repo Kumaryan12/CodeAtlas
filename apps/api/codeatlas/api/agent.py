@@ -86,7 +86,7 @@ def start_investigation(
             task=payload.task,
             mode=payload.mode,
             test_profile=payload.test_profile,
-            model=request.app.state.settings.answer_model,
+            model=request.app.state.settings.reasoning_model,
         )
         session.add(run)
         session.commit()

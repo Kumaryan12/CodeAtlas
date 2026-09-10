@@ -60,53 +60,11 @@ class OpenAIProvider:
                 "Set CODEATLAS_OPENAI_API_KEY on the API server and restart it.",
                 503,
             )
-        started = time.monotonic()
-        try:
-            with httpx.Client(
-                timeout=httpx.Timeout(10, connect=5), trust_env=False, follow_redirects=False
-            ) as client:
-                with client.stream(
-                    "POST",
-                    f"https://api.openai.com/v1/{route}",
-                    headers={"Authorization": f"Bearer {key}"},
-                    json=payload,
-                ) as response:
-                    if response.status_code == 429:
-                        raise DomainError(
-                            "provider_rate_limit",
-                            "AI provider rate limit or quota reached. Retry later.",
-                            429,
-                        )
-                    if response.status_code in {401, 403}:
-                        raise DomainError(
-                            "provider_auth",
-                            "AI provider rejected the server credentials or model access.",
-                            503,
-                        )
-                    response.raise_for_status()
-                    body = bytearray()
-                    for part in response.iter_bytes():
-                        if time.monotonic() - started > 30:
-                            raise httpx.ReadTimeout("Response deadline exceeded")
-                        if len(body) + len(part) > 2_000_000:
-                            raise DomainError(
-                                "provider_response_large",
-                                "AI provider response exceeded its limit.",
-                                502,
-                            )
-                        body.extend(part)
-                    data = json.loads(body)
-                    if not isinstance(data, dict):
-                        raise ValueError("Expected object")
-                    return data
-        except httpx.TimeoutException as exc:
-            raise DomainError("provider_timeout", "AI provider timed out. Try again.", 504) from exc
-        except (httpx.HTTPError, ValueError) as exc:
-            raise DomainError(
-                "provider_failed",
-                "AI provider request failed. Check server configuration and retry.",
-                502,
-            ) from exc
+        return post_json(
+            f"https://api.openai.com/v1/{route}",
+            {"Authorization": f"Bearer {key}"},
+            payload,
+        )
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         data = self._post(
@@ -127,7 +85,7 @@ class OpenAIProvider:
         data = self._post(
             "responses",
             {
-                "model": self.settings.answer_model,
+                "model": self.settings.reasoning_model,
                 "store": False,
                 "instructions": INSTRUCTIONS,
                 "input": json.dumps({"question": question, "excerpts": excerpts}),
@@ -161,5 +119,59 @@ class OpenAIProvider:
             ) from exc
 
 
+def post_json(url: str, headers: dict[str, str], payload: dict) -> dict:
+    started = time.monotonic()
+    try:
+        with httpx.Client(
+            timeout=httpx.Timeout(10, connect=5), trust_env=False, follow_redirects=False
+        ) as client:
+            with client.stream(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+            ) as response:
+                if response.status_code == 429:
+                    raise DomainError(
+                        "provider_rate_limit",
+                        "AI provider rate limit or quota reached. Retry later.",
+                        429,
+                    )
+                if response.status_code in {401, 403}:
+                    raise DomainError(
+                        "provider_auth",
+                        "AI provider rejected the server credentials or model access.",
+                        503,
+                    )
+                response.raise_for_status()
+                body = bytearray()
+                for part in response.iter_bytes():
+                    if time.monotonic() - started > 30:
+                        raise httpx.ReadTimeout("Response deadline exceeded")
+                    if len(body) + len(part) > 2_000_000:
+                        raise DomainError(
+                            "provider_response_large",
+                            "AI provider response exceeded its limit.",
+                            502,
+                        )
+                    body.extend(part)
+                data = json.loads(body)
+                if not isinstance(data, dict):
+                    raise ValueError("Expected object")
+                return data
+    except httpx.TimeoutException as exc:
+        raise DomainError("provider_timeout", "AI provider timed out. Try again.", 504) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise DomainError(
+            "provider_failed",
+            "AI provider request failed. Check server configuration and retry.",
+            502,
+        ) from exc
+
+
 def get_provider(settings: Settings) -> AIProvider:
+    if settings.reasoning_provider == "anthropic":
+        from codeatlas.ai.anthropic import AnthropicProvider
+
+        return AnthropicProvider(settings)
     return OpenAIProvider(settings)

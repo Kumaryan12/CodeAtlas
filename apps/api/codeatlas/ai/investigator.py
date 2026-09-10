@@ -140,7 +140,7 @@ class OpenAIInvestigator(OpenAIProvider):
         data = self._post(
             "responses",
             {
-                "model": self.settings.answer_model,
+                "model": self.settings.reasoning_model,
                 "store": False,
                 "instructions": EXECUTION_INSTRUCTIONS
                 if execution
@@ -185,10 +185,14 @@ class OpenAIInvestigator(OpenAIProvider):
 
 
 def get_investigator(settings: Settings) -> InvestigationProvider:
-    if not settings.openai_api_key.get_secret_value().strip():
+    if not settings.reasoning_configured:
         raise DomainError(
             "ai_not_configured",
-            "Set CODEATLAS_OPENAI_API_KEY on the API server and restart it.",
+            f"Set {settings.reasoning_key_name} on the API server and restart it.",
             503,
         )
+    if settings.reasoning_provider == "anthropic":
+        from codeatlas.ai.anthropic import AnthropicInvestigator
+
+        return AnthropicInvestigator(settings)
     return OpenAIInvestigator(settings)

@@ -4,6 +4,7 @@ Tracked source/configuration/documentation files. Local `.env`, dependencies, bu
 
 ```text
 CodeAtlas/
+├── .github/workflows/ci.yml
 ├── apps/
 │   ├── api/
 │   │   ├── codeatlas/
@@ -14,6 +15,7 @@ CodeAtlas/
 │   │   │   │   └── workspace.py
 │   │   │   ├── ai/
 │   │   │   │   ├── __init__.py
+│   │   │   │   ├── anthropic.py
 │   │   │   │   ├── investigator.py
 │   │   │   │   └── provider.py
 │   │   │   ├── api/
@@ -96,6 +98,7 @@ CodeAtlas/
 │   │   │   │       ├── client.ts
 │   │   │   │       └── view.jsx
 │   │   │   ├── conftest.py
+│   │   │   ├── test_anthropic.py
 │   │   │   ├── test_agent.py
 │   │   │   ├── test_archive.py
 │   │   │   ├── test_dependencies.py
@@ -158,6 +161,7 @@ CodeAtlas/
 │       ├── postcss.config.mjs
 │       └── tsconfig.json
 ├── docs/
+│   ├── mcp-architecture.md
 │   ├── development.md
 │   ├── evaluation-m4-offline.json
 │   ├── structure.md

@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 7 — sandboxed tests.** Importing and exploring code requires no AI key. Optional semantic indexing and cited answers use a server-configured OpenAI key. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Explicitly authorized tests run in bounded containers with versioned results and controlled agent retries.
+**Current milestone: 7 — sandboxed tests.** Importing and exploring code requires no AI key. Claude is the default for cited answers and agent decisions; optional semantic indexing uses a separate OpenAI embedding key. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Explicitly authorized tests run in bounded containers with versioned results and controlled agent retries.
 
 ## What works
 
@@ -165,12 +165,12 @@ During ingestion and analysis, repository code is never executed, imported, inst
 
 ## Repository Q&A
 
-1. Add `CODEATLAS_OPENAI_API_KEY` to your existing root `.env` and restart the API. Do not put the key in browser code or a `NEXT_PUBLIC_` variable.
+1. Add `CODEATLAS_ANTHROPIC_API_KEY` (reasoning) and `CODEATLAS_OPENAI_API_KEY` (embeddings) to your existing root `.env` and restart the API. Set `CODEATLAS_REASONING_PROVIDER=anthropic` and remove any old `CODEATLAS_ANSWER_MODEL=gpt-4.1-mini` override to use the Claude default. Do not put the key in browser code or a `NEXT_PUBLIC_` variable.
 2. Open a ready or partial snapshot at [localhost:3000](http://localhost:3000), select **Ask**, then **Build semantic index**. Existing snapshots work without reimporting.
 3. Choose **Hybrid + dependencies** or **Semantic baseline**. Use **Preview context** to inspect retrieval before generating an answer. Preview makes one query-embedding call and no answer-model call.
 4. Ask a specific implementation question. Click a cited path to open its exact source range; return to Ask to retain the answer. Expand **Inspect supporting excerpts** to review the actual context.
 
-Indexing sends eligible source excerpts to OpenAI's embedding endpoint and stores vectors locally. Answer generation sends the question and at most six retrieved excerpts; it does not send the entire repository. Usage may incur provider charges. The default models are `text-embedding-3-small` and `gpt-4.1-mini`, configurable through `CODEATLAS_EMBEDDING_MODEL` and `CODEATLAS_ANSWER_MODEL`. Changing the embedding model makes existing indexes stale and requires rebuilding; changing the answer model does not.
+Indexing sends eligible source excerpts to OpenAI's embedding endpoint and stores vectors locally. Answer generation sends the question to the selected reasoning provider together with at most six retrieved excerpts; it does not send the entire repository. Usage may incur provider charges. The default models are `text-embedding-3-small` for embeddings and `claude-sonnet-5` for answers/agent decisions, configurable through `CODEATLAS_EMBEDDING_MODEL` and `CODEATLAS_ANSWER_MODEL`. Changing the embedding model makes existing indexes stale and requires rebuilding; changing the answer model does not.
 
 | Route under `/api/repositories/{id}` | Behavior |
 | --- | --- |
@@ -207,13 +207,13 @@ The live comparison reports semantic-only, hybrid without expansion, and hybrid 
 
 [Recorded offline results](docs/evaluation-m4-offline.json): lexical Recall@6 **0.9167**, MRR@6 **0.8125**; graph expansion left these aggregate results unchanged. No live semantic comparison or answer-faithfulness score is claimed because this environment has no configured key. Negative-question calibration and larger held-out evaluations remain work to do before making quality claims. See [verification notes](docs/verification.md).
 
-The adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). Responses use `store: false`; source text and questions are treated as untrusted data, and Q&A exposes no execution tools.
+The OpenAI adapter follows the official [embeddings guide](https://developers.openai.com/api/docs/guides/embeddings) and [structured output guide](https://developers.openai.com/api/docs/guides/structured-outputs). OpenAI Responses requests use `store: false`; source text and questions are treated as untrusted data, and Q&A exposes no execution tools.
 
 ## Read-only investigations
 
 Open a completed snapshot → **Agent**, enter an investigation task, and select **Start investigation**. The agent chooses a public plan, reads repository evidence, and returns cited findings or reports insufficient context. Its trace distinguishes remote model decisions from snapshot reads, including query-embedding calls. Click a final citation to inspect the original source.
 
-Investigations use the existing `CODEATLAS_OPENAI_API_KEY` and `CODEATLAS_ANSWER_MODEL` settings. Semantic indexing is optional: `search_code` needs an index, while the other read tools work without one. The UI shows the latest 20 runs; the API supports paginated history. Runs continue after leaving the view, and the UI polls progress every two seconds while a run is active.
+Investigations default to Claude using `CODEATLAS_ANTHROPIC_API_KEY`. They work without an OpenAI key when using file, symbol, dependency, and draft tools. `CODEATLAS_ANSWER_MODEL` optionally overrides the selected provider’s default model. To select OpenAI reasoning explicitly, set `CODEATLAS_REASONING_PROVIDER=openai` and remove any Claude model override (default: `gpt-4.1-mini`). Provider failures do not silently switch vendors. Semantic indexing is optional: `search_code` needs an index, while the other read tools work without one. The UI shows the latest 20 runs; the API supports paginated history. Runs continue after leaving the view, and the UI polls progress every two seconds while a run is active.
 
 | Tool | Boundary |
 | --- | --- |
@@ -270,7 +270,7 @@ No image is pulled or built while processing a test request. The server resolves
 
 Two workflows are available:
 
-- **Review, then test:** open an existing stopped draft in Agent, review its diff, select a test profile under **Sandbox tests**, then select **Run tests in sandbox**. This action needs Docker and the server execution setting, but no OpenAI key.
+- **Review, then test:** open an existing stopped draft in Agent, review its diff, select a test profile under **Sandbox tests**, then select **Run tests in sandbox**. This action needs Docker and the server execution setting, but no AI key.
 - **Agent with tests:** while creating an editing run, change **Agent test permission** from its default **No execution** to a specific profile. Starting the run explicitly permits the agent to use `run_tests()` and make bounded repairs. The agent must review the latest diff before each execution. Test output excerpts may be sent to the model.
 
 | Profile | Fixed behavior |
@@ -323,3 +323,9 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 6. **Reviewable edits — implemented:** isolated source drafts, guarded edit/create tools, diff review and patch download.
 7. **Sandboxed tests — implemented:** opt-in fixed profiles, container limits, versioned output, and up to two repair/retest iterations.
 8. **Approved pull requests — next:** explicit human approval before remote changes.
+
+## Claude and the proposed MCP boundary
+
+Claude uses the [Messages API](https://platform.claude.com/docs/en/api/overview) with [structured JSON outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). The runtime still validates each decision, executes only permitted tools, checks evidence IDs, and enforces budgets. Refusals, truncated responses, and invalid decisions fail safely. Claude has [no native embedding model](https://platform.claude.com/docs/en/build-with-claude/embeddings), so retrieval embeddings remain separately configured. Switching reasoning providers does not invalidate existing embeddings.
+
+The [MCP integration design](docs/mcp-architecture.md) places an MCP client alongside local tools inside the agent runtime. **MCP is planned, not implemented.** The current agent executes its Python tools directly. Live Claude quality remains unmeasured until credentials are configured and representative tasks are evaluated.

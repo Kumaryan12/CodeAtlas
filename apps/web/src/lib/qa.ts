@@ -1,5 +1,8 @@
 export type IndexStatus = {
   status: "not_indexed" | "ready" | "stale";
+  reasoning_configured: boolean;
+  reasoning_provider: string;
+  reasoning_key_name: string;
   configured: boolean;
   provider: string;
   embedding_model: string;

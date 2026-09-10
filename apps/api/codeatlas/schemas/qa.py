@@ -70,6 +70,10 @@ class AskResponse(ModelAnswer):
 
 class IndexStatus(BaseModel):
     status: Literal["not_indexed", "ready", "stale"]
+    # configured/provider describe embeddings for backwards compatibility.
+    reasoning_configured: bool
+    reasoning_provider: str
+    reasoning_key_name: str
     configured: bool
     provider: str
     embedding_model: str

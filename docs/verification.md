@@ -243,3 +243,11 @@ This record describes local verification, not a production-readiness certificati
 - **21 frontend tests passed**, plus ESLint, TypeScript, the production Webpack build, and `git diff --check`. No backend schema or dependency changes.
 - Browser selection and documented connection troubleshooting still found no available browser. Visual appearance, keyboard interactions and responsive rendering remain unverified in a live browser.
 - Confirmed locally without printing credentials: provider integration exists, but no OpenAI API key is configured. Configured model names are `gpt-4.1-mini` for answers/agent decisions and `text-embedding-3-small` for retrieval embeddings. The architecture map itself uses deterministic static analysis.
+
+## Claude provider checkpoint — 2026-09-10
+
+- Claude is now the default reasoning provider (`claude-sonnet-5`); OpenAI reasoning remains an explicit configuration option. OpenAI embeddings retain their existing fingerprint and separate credential.
+- Existing backend suite: **180 passed, 6 opt-in Docker tests skipped**. New Claude suite: **16 passed**, covering host/credential separation, provider selection, permission-specific schemas, refusal/truncation/malformed response rejection, sanitized provider errors, independent availability, and a mocked Claude-to-runtime source-read/cited-finish flow with persisted model identity.
+- Ruff lint/format, frontend lint/type checks, **21 frontend tests**, production build, and `git diff --check` passed. Local API and frontend restarted with no active runs/tests; HTTP checks through the frontend proxy verified Claude model/configuration status.
+- No live Claude calls were made: the Anthropic key is not configured. No claim of live answer/edit quality or browser visual verification. Existing upstream test deprecation warnings remain.
+- MCP client/server connections are a design proposal in `mcp-architecture.md`, not an implemented or interoperability-tested capability.

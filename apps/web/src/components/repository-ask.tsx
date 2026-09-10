@@ -88,11 +88,13 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
     </div>
     {error && <div className="notice error" role="alert">{error} <button disabled={!!busy} onClick={() => setRevision((value) => value + 1)}>Refresh status</button></div>}
     {index && <div className="ask-index">
-      {!index.configured ? <p>AI is not configured. Set <code>CODEATLAS_OPENAI_API_KEY</code> in the API server’s environment and restart the API, then refresh status.</p>
+      {!index.configured ? <p>Embeddings are not configured. Set <code>CODEATLAS_OPENAI_API_KEY</code> in the API server’s environment and restart the API, then refresh status.</p>
         : index.status !== "ready" ? <><p>{index.status === "stale" ? "The embedding model changed. Rebuild this snapshot’s index." : "Build a semantic index to enable questions for this snapshot."}</p>
           <p className="muted">This sends eligible source excerpts to {index.provider} for embeddings. Model usage may incur charges.</p>
           <button className="primary-button" disabled={!!busy} onClick={() => void buildIndex()}>{busy === "index" ? "Generating embeddings…" : "Build semantic index"}</button></>
           : <p><strong>{index.chunk_count.toLocaleString()} excerpts indexed</strong> · {index.embedding_model}</p>}
+      {!index.reasoning_configured && <p>Answers require <code>{index.reasoning_key_name}</code> on the API server. Context preview only needs embeddings.</p>}
+      <p className="muted">Answers: {index.reasoning_provider} · {index.answer_model}. Questions and retrieved excerpts are sent to this provider.</p>
       {index.skipped_long_lines > 0 && <p className="notice warning">{index.skipped_long_lines} oversized source lines were excluded from retrieval.</p>}
     </div>}
     <div className="ask-conversation" aria-live="polite" aria-busy={busy === "ask"}>
@@ -128,7 +130,7 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
         disabled={!!busy || !index?.configured || index.status !== "ready"} placeholder="How does this repository…" />
       <div><p className="muted">Each question is independent. Preview uses a query embedding without generating an answer. Answers can be wrong; inspect the source.</p>
         <button type="button" className="secondary-button" onClick={() => void previewContext()} disabled={!!busy || !question.trim() || !index?.configured || index.status !== "ready"}>Preview context</button>
-        <button className="primary-button" disabled={!!busy || !question.trim() || !index?.configured || index.status !== "ready"}>Ask</button></div>
+        <button className="primary-button" disabled={!!busy || !question.trim() || !index?.configured || !index.reasoning_configured || index.status !== "ready"}>Ask</button></div>
     </form>
     <p className="ask-meta">The last 10 answers remain in this view until you switch snapshots or reload.</p>
   </section>;

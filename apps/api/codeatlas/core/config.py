@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,8 +21,33 @@ class Settings(BaseSettings):
     download_timeout_seconds: int = Field(default=45, ge=1, le=60)
     analysis_timeout_seconds: int = Field(default=60, ge=1, le=60)
 
+    reasoning_provider: Literal["anthropic", "openai"] = "anthropic"
+    anthropic_api_key: SecretStr = SecretStr("")
     openai_api_key: SecretStr = SecretStr("")
     embedding_model: str = Field(default="text-embedding-3-small", min_length=1, max_length=100)
-    answer_model: str = Field(default="gpt-4.1-mini", min_length=1, max_length=100)
+    answer_model: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @property
+    def reasoning_model(self) -> str:
+        return self.answer_model or (
+            "claude-sonnet-5" if self.reasoning_provider == "anthropic" else "gpt-4.1-mini"
+        )
+
+    @property
+    def reasoning_configured(self) -> bool:
+        key = (
+            self.anthropic_api_key
+            if self.reasoning_provider == "anthropic"
+            else self.openai_api_key
+        )
+        return bool(key.get_secret_value().strip())
+
+    @property
+    def reasoning_key_name(self) -> str:
+        return (
+            "CODEATLAS_ANTHROPIC_API_KEY"
+            if self.reasoning_provider == "anthropic"
+            else "CODEATLAS_OPENAI_API_KEY"
+        )
 
     sandbox_enabled: bool = False
