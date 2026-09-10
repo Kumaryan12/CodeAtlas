@@ -35,3 +35,13 @@ test("diff headers are distinguished from additions and deletions", () => {
   assert.equal(diffLineKind("-return None"), "diff-deletion");
   assert.equal(diffLineKind(" unchanged"), "diff-context");
 });
+
+
+test("usage distinguishes unmeasured, partial, and zero-cost measured runs", async () => {
+  const { usageLabel } = await import("../src/lib/agent.ts");
+  assert.match(usageLabel(), /unavailable/);
+  const usage = { recorded_calls: 1, tokens_complete: false, known_input_tokens: 12, known_output_tokens: 3, provider_duration_ms: 200, estimated_cost_usd: null };
+  assert.match(usageLabel(usage), /partial/);
+  assert.match(usageLabel(usage), /cost not estimated/);
+  assert.match(usageLabel({ ...usage, tokens_complete: true, estimated_cost_usd: 0 }), /estimated \$0.000000/);
+});

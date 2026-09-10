@@ -33,6 +33,7 @@ jobs:
     env:
       CODEATLAS_DATABASE_URL: postgresql+psycopg://codeatlas:ci_only@localhost:5432/codeatlas
       CODEATLAS_OPENAI_API_KEY: ""
+      CODEATLAS_ANTHROPIC_API_KEY: ""
       CODEATLAS_SANDBOX_ENABLED: "false"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -59,10 +60,14 @@ jobs:
           alembic -c apps/api/alembic.ini check
       - name: Record offline lexical retrieval baseline
         run: python -m codeatlas.retrieval.evaluate --offline > evaluation-offline.json
+      - run: python -m codeatlas.evaluation.agent --scripted --transport mcp --markdown agent-evaluation.md > agent-evaluation.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: offline-retrieval-${{ github.sha }}
-          path: evaluation-offline.json
+          name: offline-evaluations-${{ github.sha }}
+          path: |
+            evaluation-offline.json
+            agent-evaluation.json
+            agent-evaluation.md
           if-no-files-found: error
           retention-days: 14
 
@@ -90,6 +95,7 @@ jobs:
     timeout-minutes: 10
     env:
       CODEATLAS_OPENAI_API_KEY: ""
+      CODEATLAS_ANTHROPIC_API_KEY: ""
       CODEATLAS_TEST_DOCKER: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

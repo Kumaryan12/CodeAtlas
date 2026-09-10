@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { WorkspaceReview } from "./workspace-review";
 import { request } from "@/lib/repositories";
 import { citationLabel, type Citation, type IndexStatus } from "@/lib/qa";
-import { isRunActive, traceCounts, type AgentRun, type RunList } from "@/lib/agent";
+import { isRunActive, traceCounts, usageLabel, type AgentRun, type RunList } from "@/lib/agent";
 
 export function RepositoryAgent({ repositoryId, onOpenSource }: {
   repositoryId: string;
@@ -115,6 +115,7 @@ export function RepositoryAgent({ repositoryId, onOpenSource }: {
       {!selectedId ? <p className="muted">Start an investigation to inspect its plan and execution trace.</p> : !current ? <p role="status" className="muted">Loading trace…</p> : <>
         <div className="agent-run-heading"><h3>{current.task}</h3><span className="ask-state">{current.status}</span></div>
         <p className="ask-meta">{current.model} · {counts.model}/{current.test_profile ? 21 : current.mode === "edit" ? 11 : 6} model decisions · {counts.reads + counts.writes + counts.executions}/{current.test_profile ? 20 : current.mode === "edit" ? 10 : 5} tool attempts ({counts.writes} writes, {counts.executions} executions)</p>
+        <p className="ask-meta" aria-label="Model usage">{usageLabel(current.usage_summary)}</p>
         {current.error_message && <p className="notice warning" role="status">{current.error_message}</p>}
         {!!current.plan.length && <div className="agent-plan"><p className="eyebrow">PLAN</p><ol>{current.plan.map((step, i) => <li key={i}>{step}</li>)}</ol></div>}
         <div className="agent-trace" aria-live="polite"><p className="eyebrow">EXECUTION TRACE</p>

@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from codeatlas.ai.usage import UsageRecord, UsageSummary
 from codeatlas.schemas.qa import Citation, ModelAnswer
 
 
@@ -56,6 +57,7 @@ class AgentDecision(BaseModel):
 
 
 class AgentStep(BaseModel):
+    usage: list[UsageRecord] = Field(default_factory=list)
     transport: Literal["local", "mcp"] | None = None
     number: int
     kind: Literal["model", "read", "write", "execute"]
@@ -86,6 +88,7 @@ class RunSummary(BaseModel):
 
 
 class RunResponse(RunSummary):
+    usage_summary: UsageSummary
     plan: list[str]
     steps: list[AgentStep]
     result: InvestigationResult | None

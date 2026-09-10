@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from codeatlas.ai.usage import TokenPrices
+
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
@@ -50,5 +52,6 @@ class Settings(BaseSettings):
             else "CODEATLAS_OPENAI_API_KEY"
         )
 
+    usage_prices: dict[str, TokenPrices] = Field(default_factory=dict)
     read_tool_transport: Literal["local", "mcp"] = "local"
     sandbox_enabled: bool = False

@@ -15,7 +15,24 @@ export type RunSummary = {
   error_code: string | null;
   error_message: string | null;
 };
+export type UsageSummary = {
+  recorded_calls: number;
+  tokens_complete: boolean;
+  known_input_tokens: number;
+  known_output_tokens: number;
+  provider_duration_ms: number;
+  estimated_cost_usd: number | null;
+};
+
+export function usageLabel(usage?: UsageSummary): string {
+  if (!usage?.recorded_calls) return "Usage unavailable · no provider measurements";
+  const tokens = `${usage.known_input_tokens.toLocaleString()} input / ${usage.known_output_tokens.toLocaleString()} output tokens`;
+  const cost = usage.estimated_cost_usd === null ? "cost not estimated" : `estimated $${usage.estimated_cost_usd.toFixed(6)}`;
+  return `${tokens}${usage.tokens_complete ? "" : " (partial)"} · ${(usage.provider_duration_ms / 1000).toFixed(2)} s provider time · ${cost}`;
+}
+
 export type AgentRun = RunSummary & {
+  usage_summary?: UsageSummary;
   plan: string[];
   steps: {
     number: number;

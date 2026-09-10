@@ -7,6 +7,7 @@ from typing import Protocol
 import httpx
 from pydantic import ValidationError
 
+from codeatlas.ai.usage import record_usage
 from codeatlas.core.config import Settings
 from codeatlas.core.errors import DomainError
 from codeatlas.schemas.qa import ModelAnswer
@@ -121,6 +122,8 @@ class OpenAIProvider:
 
 def post_json(url: str, headers: dict[str, str], payload: dict) -> dict:
     started = time.monotonic()
+    data = None
+    http_status = None
     try:
         with httpx.Client(
             timeout=httpx.Timeout(10, connect=5), trust_env=False, follow_redirects=False
@@ -131,6 +134,7 @@ def post_json(url: str, headers: dict[str, str], payload: dict) -> dict:
                 headers=headers,
                 json=payload,
             ) as response:
+                http_status = response.status_code
                 if response.status_code == 429:
                     raise DomainError(
                         "provider_rate_limit",
@@ -167,6 +171,11 @@ def post_json(url: str, headers: dict[str, str], payload: dict) -> dict:
             "AI provider request failed. Check server configuration and retry.",
             502,
         ) from exc
+
+    finally:
+        record_usage(
+            url, payload["model"], data, round((time.monotonic() - started) * 1000), http_status
+        )
 
 
 def get_provider(settings: Settings) -> AIProvider:

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from codeatlas.agents.tools import ReadTools
 from codeatlas.agents.workspace import DraftWorkspace, workspace_digest
+from codeatlas.ai.usage import Capture, active_capture, drain_usage
 from codeatlas.core.errors import DomainError
 from codeatlas.mcp.contracts import TOOLS as MCP_ACTIONS
 from codeatlas.models.repository import AgentRun, Repository
@@ -47,6 +48,7 @@ def finish_step(session, run, started, summary, error_code=None):
         "summary": summary,
         "duration_ms": round((time.monotonic() - started) * 1000),
         "error_code": error_code,
+        "usage": drain_usage(),
     }
     run.steps = [*run.steps[:-1], step]
     session.commit()
@@ -261,6 +263,7 @@ def run_loop(session, run, settings, provider):
 
 
 def execute_run(engine, run_id, settings, provider, lock):
+    capture_token = active_capture.set(Capture(settings.usage_prices))
     try:
         with Session(engine, expire_on_commit=False) as session:
             run = session.get(AgentRun, run_id)
@@ -286,6 +289,7 @@ def execute_run(engine, run_id, settings, provider, lock):
                             "status": "failed",
                             "summary": message,
                             "error_code": code,
+                            "usage": drain_usage(),
                             "duration_ms": max(
                                 0,
                                 round(
@@ -302,4 +306,5 @@ def execute_run(engine, run_id, settings, provider, lock):
     except SQLAlchemyError:
         logger.error("investigation_trace_unavailable", extra={"run_id": run_id})
     finally:
+        active_capture.reset(capture_token)
         lock.release()

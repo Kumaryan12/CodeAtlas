@@ -11,6 +11,7 @@ from codeatlas.agents.runner import execute_run
 from codeatlas.agents.tools import ReadTools
 from codeatlas.agents.workspace import DraftWorkspace
 from codeatlas.ai.investigator import InvestigationProvider, get_investigator
+from codeatlas.ai.usage import summarize_usage
 from codeatlas.api.qa import ready_repository
 from codeatlas.api.repositories import Database
 from codeatlas.core.errors import DomainError
@@ -59,6 +60,7 @@ def run_response(session, run):
         )
     return RunResponse(
         **RunSummary.model_validate(run, from_attributes=True).model_dump(),
+        usage_summary=summarize_usage(run.steps),
         plan=run.plan,
         steps=run.steps,
         result=result,
