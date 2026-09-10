@@ -107,6 +107,7 @@ class AgentRun(Base):
     mode: Mapped[str] = mapped_column(
         String(20), default="investigate", server_default="investigate"
     )
+    test_profile: Mapped[str | None] = mapped_column(String(30))
     changes: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     status: Mapped[str] = mapped_column(String(20), default="running")
     model: Mapped[str] = mapped_column(String(100))
@@ -121,3 +122,22 @@ class AgentRun(Base):
     error_message: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (Index("ix_agent_runs_repository_created", "repository_id", "created_at"),)
+
+
+class TestExecution(Base):
+    __tablename__ = "test_executions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    run_id: Mapped[str] = mapped_column(ForeignKey("agent_runs.id", ondelete="CASCADE"), index=True)
+    profile: Mapped[str] = mapped_column(String(30))
+    workspace_digest: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    image_id: Mapped[str | None] = mapped_column(String(100))
+    exit_code: Mapped[int | None] = mapped_column(Integer)
+    stdout: Mapped[str] = mapped_column(Text, default="")
+    stderr: Mapped[str] = mapped_column(Text, default="")
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -23,3 +23,5 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     embedding_model: str = Field(default="text-embedding-3-small", min_length=1, max_length=100)
     answer_model: str = Field(default="gpt-4.1-mini", min_length=1, max_length=100)
+
+    sandbox_enabled: bool = False

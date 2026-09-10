@@ -10,10 +10,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from codeatlas.agents.tools import ReadTools
-from codeatlas.agents.workspace import DraftWorkspace
+from codeatlas.agents.workspace import DraftWorkspace, workspace_digest
 from codeatlas.core.errors import DomainError
 from codeatlas.models.repository import AgentRun, Repository
-from codeatlas.schemas.agent import AgentDecision, AgentStep, DraftDecision
+from codeatlas.sandbox.service import agent_test
+from codeatlas.schemas.agent import AgentDecision, AgentStep, DraftDecision, ExecutionDecision
 
 MAX_TOOLS = 5
 MAX_DECISIONS = 6
@@ -65,6 +66,8 @@ def finish_run(session, run, status, code=None, message=None):
 
 
 def tool_summary(action, result):
+    if action == "run_tests":
+        return f"{result['profile']}: {result['status']} (exit {result['exit_code']})."
     if action in ("edit_file", "create_file"):
         return f"Saved draft {result['path']}; {result['changed_files']} changed files."
     if action == "read_workspace":
@@ -89,21 +92,27 @@ def run_loop(session, run, settings, provider):
     repository = session.get(Repository, run.repository_id)
     tools = ReadTools(session, repository, settings, provider)
     workspace = DraftWorkspace(session, run, repository) if run.mode == "edit" else None
-    max_tools = 10 if workspace else MAX_TOOLS
-    max_decisions = 11 if workspace else MAX_DECISIONS
-    decision_model = DraftDecision if workspace else AgentDecision
+    execution = workspace is not None and run.test_profile is not None
+    max_seconds = 180 if execution else MAX_SECONDS
+    max_tools = 20 if execution else 10 if workspace else MAX_TOOLS
+    max_decisions = max_tools + 1 if execution else 11 if workspace else MAX_DECISIONS
+    decision_model = (
+        ExecutionDecision if execution else DraftDecision if workspace else AgentDecision
+    )
     observations = []
     started = time.monotonic()
     attempts = 0
     seen = set()
+    last_test_digest = None
     for _ in range(max_decisions):
-        if time.monotonic() - started >= MAX_SECONDS:
+        if time.monotonic() - started >= max_seconds:
             return finish_run(
                 session, run, "limited", "run_timeout", "Investigation reached its time budget."
             )
         state = {
             "task": run.task,
             "mode": run.mode,
+            "test_profile": run.test_profile,
             "repository": repository.full_name,
             "commit_sha": repository.commit_sha,
             "plan": run.plan,
@@ -129,7 +138,7 @@ def run_loop(session, run, settings, provider):
         if not run.plan:
             run.plan = decision.plan
         finish_step(session, run, step_started, decision.summary)
-        if time.monotonic() - started >= MAX_SECONDS:
+        if time.monotonic() - started >= max_seconds:
             return finish_run(
                 session, run, "limited", "run_timeout", "Investigation reached its time budget."
             )
@@ -139,6 +148,12 @@ def run_loop(session, run, settings, provider):
                 raise DomainError(
                     "diff_not_reviewed",
                     "The agent did not review its latest draft. Review the partial diff.",
+                    502,
+                )
+            if execution and last_test_digest != workspace_digest(run):
+                raise DomainError(
+                    "draft_not_tested",
+                    "The latest draft has no test result. Inspect its test history.",
                     502,
                 )
             answer = decision.answer
@@ -179,18 +194,35 @@ def run_loop(session, run, settings, provider):
         step_started = append_step(
             session,
             run,
-            "write" if decision.action in ("edit_file", "create_file") else "read",
+            "execute"
+            if decision.action == "run_tests"
+            else "write"
+            if decision.action in ("edit_file", "create_file")
+            else "read",
             decision.action,
         )
         try:
-            if signature in seen and decision.action not in ("read_workspace", "view_diff"):
+            if signature in seen and decision.action not in (
+                "read_workspace",
+                "view_diff",
+                "run_tests",
+            ):
                 raise DomainError(
                     "repeated_tool_call",
                     "This read was already attempted. Use its result or finish.",
                     422,
                 )
             seen.add(signature)
-            if workspace and decision.action in (
+            if execution and decision.action == "run_tests":
+                if arguments:
+                    raise DomainError(
+                        "invalid_tool_arguments",
+                        "run_tests takes no arguments; the user chooses its profile.",
+                        422,
+                    )
+                result = agent_test(session, run, workspace, settings)
+                last_test_digest = result["workspace_digest"]
+            elif workspace and decision.action in (
                 "read_workspace",
                 "edit_file",
                 "create_file",
@@ -208,6 +240,9 @@ def run_loop(session, run, settings, provider):
                 run,
                 step_started,
                 tool_summary(decision.action, result),
+                (result.get("error_code") or "tests_failed")
+                if decision.action == "run_tests" and result["status"] != "passed"
+                else None,
             )
         observations.append({"action": decision.action, "arguments": arguments, "result": result})
     finish_run(session, run, "limited", "step_limit", "Investigation reached its decision limit.")

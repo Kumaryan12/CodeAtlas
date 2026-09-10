@@ -14,13 +14,17 @@ from codeatlas.ai.investigator import InvestigationProvider, get_investigator
 from codeatlas.api.qa import ready_repository
 from codeatlas.api.repositories import Database
 from codeatlas.core.errors import DomainError
-from codeatlas.models.repository import AgentRun, Repository
+from codeatlas.models.repository import AgentRun, Repository, TestExecution
+from codeatlas.sandbox.docker import require_sandbox
+from codeatlas.sandbox.service import execute_manual_test, reserve_test
 from codeatlas.schemas.agent import (
     InvestigationRequest,
     InvestigationResult,
     RunList,
     RunResponse,
     RunSummary,
+    TestRequest,
+    TestResponse,
     WorkspaceDiff,
 )
 from codeatlas.schemas.qa import Citation
@@ -71,6 +75,8 @@ def start_investigation(
     background: BackgroundTasks,
 ):
     repository = ready_repository(session, repository_id)
+    if payload.test_profile:
+        require_sandbox(request.app.state.settings, payload.test_profile)
     lock = request.app.state.ai_lock
     if not lock.acquire(blocking=False):
         raise DomainError("ai_busy", "Another AI operation is running. Try again shortly.", 409)
@@ -79,6 +85,7 @@ def start_investigation(
             repository_id=repository.id,
             task=payload.task,
             mode=payload.mode,
+            test_profile=payload.test_profile,
             model=request.app.state.settings.answer_model,
         )
         session.add(run)
@@ -152,6 +159,67 @@ def get_workspace_diff(repository_id: UUID, run_id: UUID, session: Database):
     return DraftWorkspace(session, run, repository).diff()
 
 
+def scoped_draft(session, repository_id, run_id):
+    ready_repository(session, repository_id)
+    run = session.scalar(
+        select(AgentRun).where(
+            AgentRun.id == str(run_id), AgentRun.repository_id == str(repository_id)
+        )
+    )
+    if run is None or run.mode != "edit":
+        raise DomainError("workspace_not_found", "Draft was not found in this snapshot.", 404)
+    return run
+
+
+@router.get("/{repository_id}/agent-runs/{run_id}/test-runs", response_model=list[TestResponse])
+def list_tests(repository_id: UUID, run_id: UUID, session: Database):
+    run = scoped_draft(session, repository_id, run_id)
+    return [
+        TestResponse.model_validate(test, from_attributes=True)
+        for test in session.scalars(
+            select(TestExecution)
+            .where(TestExecution.run_id == run.id)
+            .order_by(TestExecution.created_at, TestExecution.id)
+        )
+    ]
+
+
+@router.post(
+    "/{repository_id}/agent-runs/{run_id}/test-runs", response_model=TestResponse, status_code=202
+)
+def start_test(
+    repository_id: UUID,
+    run_id: UUID,
+    payload: TestRequest,
+    request: Request,
+    session: Database,
+    background: BackgroundTasks,
+):
+    run = scoped_draft(session, repository_id, run_id)
+    if run.status == "running":
+        raise DomainError(
+            "draft_busy", "Wait for the agent to finish before manually testing its draft.", 409
+        )
+    lock = request.app.state.ai_lock
+    if not lock.acquire(blocking=False):
+        raise DomainError("ai_busy", "Another AI or test operation is running.", 409)
+    try:
+        image = require_sandbox(request.app.state.settings, payload.profile)
+        test = reserve_test(session, run, payload.profile, payload.workspace_digest, image)
+        response = TestResponse.model_validate(test, from_attributes=True)
+        background.add_task(
+            execute_manual_test,
+            request.app.state.database,
+            test.id,
+            request.app.state.settings,
+            lock,
+        )
+        return response
+    except Exception:
+        lock.release()
+        raise
+
+
 def recover_interrupted(engine):
     # Single-worker MVP: no durable job queue and no automatic reruns after a restart.
     try:
@@ -172,6 +240,12 @@ def recover_interrupted(engine):
                     else step
                     for step in run.steps
                 ]
+            for test in session.scalars(
+                select(TestExecution).where(TestExecution.status == "running")
+            ):
+                test.status = "interrupted"
+                test.error_code = "server_restarted"
+                test.finished_at = datetime.now(UTC)
             session.commit()
     except SQLAlchemyError:
         # Health must remain available before initial migrations or when the DB is down.

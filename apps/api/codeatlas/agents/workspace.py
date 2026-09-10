@@ -2,6 +2,7 @@
 
 import difflib
 import hashlib
+import json
 import re
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -18,6 +19,11 @@ MAX_FILES = 10
 
 def digest(source):
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
+def workspace_digest(run):
+    # Snapshot ID is immutable; include every overlay byte in the version fingerprint.
+    return digest(json.dumps([run.repository_id, run.changes], sort_keys=True, ensure_ascii=False))
 
 
 class Empty(BaseModel):
@@ -193,5 +199,9 @@ class DraftWorkspace:
             )
         self.reviewed_changes = dict(self.run.changes)
         return WorkspaceDiff(
-            run_id=self.run.id, commit_sha=self.repository.commit_sha, files=files, total=len(files)
+            run_id=self.run.id,
+            commit_sha=self.repository.commit_sha,
+            workspace_digest=workspace_digest(self.run),
+            files=files,
+            total=len(files),
         )
