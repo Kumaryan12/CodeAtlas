@@ -259,3 +259,12 @@ This record describes local verification, not a production-readiness certificati
 - A read-only check against the existing local PostgreSQL database passed file listing and source reading through the actual stdio client/server, including citation verification. No snapshot source was changed. The child received only the database URL as application-specific environment configuration.
 - Frontend lint, type checking, **21 tests**, and production build passed. Ruff lint/format and diff whitespace checks passed. Trace UI now labels MCP reads. No browser visual verification or live Claude-quality result is claimed.
 - MCP is enabled in the ignored local environment and `.env.example`; the Settings fallback stays local. Remote servers, external-host interoperability, MCP edits/testing, and Git writes remain unimplemented. One pre-existing upstream AnyIO test warning remains.
+
+## Agent evaluation and usage checkpoint — 2026-09-11
+
+- Full backend suite: **216 passed, 6 opt-in Docker tests skipped**. Usage tests cover provider/cache accounting, explicit rate snapshots, missing/malformed usage, unknown prices, failure persistence, and context isolation. Evaluation tests cover expected enforcement, rejected false-positive grades, missing live credentials, and MCP execution. After adding HTTP-status capture, the focused usage suite was rerun successfully (10 tests).
+- The six-case scripted evaluation passed through actual MCP subprocesses. Checked-in Markdown and JSON reports identify scripted mode and distinguish runtime assertions from live quality. CI now runs and uploads the scripted report. No live provider request was made.
+- Frontend lint/type checks, **22 tests**, production build, and Ruff lint/format checks passed. The UI distinguishes partial or absent measurements from zero usage/cost. No browser visual or accessibility verification is claimed. One upstream AnyIO deprecation warning remains.
+- Usage resides in existing trace JSON; no schema migration is required. Prices default to unknown and require explicit model-specific configuration. Standalone Q&A/index accounting, billing reconciliation, hard-crash durability, human faithfulness grading, and held-out edit/repair evaluations remain outside this checkpoint.
+
+The local Docker daemon and API/frontend services were stopped at final verification. No fresh PostgreSQL or browser smoke check was run for this checkpoint; persistence and protocol tests used isolated SQLite databases.

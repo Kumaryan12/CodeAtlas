@@ -17,7 +17,8 @@ CodeAtlas/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── anthropic.py
 │   │   │   │   ├── investigator.py
-│   │   │   │   └── provider.py
+│   │   │   │   ├── provider.py
+│   │   │   │   └── usage.py
 │   │   │   ├── api/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── agent.py
@@ -36,6 +37,9 @@ CodeAtlas/
 │   │   │   │   ├── config.py
 │   │   │   │   ├── graph.py
 │   │   │   │   └── resolver.py
+│   │   │   ├── evaluation/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── agent.py
 │   │   │   ├── ingestion/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── archive.py
@@ -105,6 +109,8 @@ CodeAtlas/
 │   │   │   ├── conftest.py
 │   │   │   ├── test_anthropic.py
 │   │   │   ├── test_mcp.py
+│   │   │   ├── test_agent_evaluation.py
+│   │   │   ├── test_usage.py
 │   │   │   ├── test_agent.py
 │   │   │   ├── test_archive.py
 │   │   │   ├── test_dependencies.py
@@ -168,6 +174,9 @@ CodeAtlas/
 │       └── tsconfig.json
 ├── docs/
 │   ├── mcp-architecture.md
+│   ├── agent-evaluation.md
+│   ├── evaluation-agent-scripted.json
+│   ├── evaluation-agent-scripted.md
 │   ├── development.md
 │   ├── evaluation-m4-offline.json
 │   ├── structure.md
