@@ -70,12 +70,14 @@ def seed(session, directory):
     return repo
 
 
-def run(settings, answers=False, offline=False, checkpoint=None):
+def run(settings, answers=False, offline=False, checkpoint=None, case_ids=None):
     directory = PROJECT_ROOT / "apps/api/evaluation"
     corpus = directory / "rag_fixture"
     case_bytes = (directory / "rag_cases.json").read_bytes()
     dataset = json.loads(case_bytes)
     cases = dataset["cases"]
+    if case_ids is not None and (not case_ids or not case_ids <= {c["id"] for c in cases}):
+        raise ValueError("Unknown or empty answer case selection")
     digest = hashlib.sha256()
     for path in sorted(corpus.glob("*.py")):
         digest.update(path.name.encode() + b"\0" + path.read_bytes())
@@ -168,6 +170,8 @@ def run(settings, answers=False, offline=False, checkpoint=None):
             }
         if answers:
             for case in cases:
+                if case_ids is not None and case["id"] not in case_ids:
+                    continue
                 capture = Capture(settings.usage_prices)
                 token = active_capture.set(capture)
                 row = {**case, "manual_correctness": None, "manual_faithfulness": None}
@@ -205,11 +209,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--answers", action="store_true", help="Call the configured reasoning API")
+    parser.add_argument("--case", action="append", help="Answer only these case IDs")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.offline and args.answers:
         parser.error("--answers cannot be offline")
-    report = run(Settings(), answers=args.answers, offline=args.offline, checkpoint=args.output)
+    report = run(
+        Settings(),
+        answers=args.answers,
+        offline=args.offline,
+        checkpoint=args.output,
+        case_ids=set(args.case) if args.case else None,
+    )
     args.output.write_text(json.dumps(report, indent=2) + "\n")
     print(f"Saved {args.output}: {len(report['answers'])} answer evaluations")
 

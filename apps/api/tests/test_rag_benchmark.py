@@ -54,3 +54,24 @@ def test_local_real_model_preserves_tail_and_normalizes():
     )
     assert sum((a - b) ** 2 for a, b in zip(vectors[0], vectors[1], strict=True)) > 0.01
     assert embed([]) == []
+
+
+def test_report_keeps_service_errors_in_outcome_denominator():
+    from codeatlas.evaluation.rag_report import render
+
+    report = run(Settings(_env_file=None), offline=True)
+    report["answers"] = [
+        {
+            "id": "no_password",
+            "expected": [],
+            "error": "provider_timeout",
+            "expected_outcome": False,
+            "http_usage": [],
+        }
+    ]
+    rendered = render(report)
+    assert "provider/service errors: 1" in rendered
+    assert "0/1 (errors count as failures)" in rendered
+    assert "provider_timeout" in rendered
+    with pytest.raises(ValueError, match="Unknown"):
+        run(Settings(_env_file=None), offline=True, case_ids={"nonexistent"})

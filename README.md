@@ -2,7 +2,7 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 7 — sandboxed tests.** Importing and exploring code requires no AI key. Claude is the default for cited answers and agent decisions; optional semantic indexing uses a separate OpenAI embedding key. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Explicitly authorized tests run in bounded containers with versioned results and controlled agent retries.
+**Current milestone: 7 — sandboxed tests.** Importing and exploring code requires no AI key. Claude is the default for cited answers and agent decisions; semantic indexing supports local CPU embeddings without a second API key, or optional OpenAI embeddings. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Explicitly authorized tests run in bounded containers with versioned results and controlled agent retries.
 
 ## What works
 
@@ -165,12 +165,12 @@ During ingestion and analysis, repository code is never executed, imported, inst
 
 ## Repository Q&A
 
-1. Add `CODEATLAS_ANTHROPIC_API_KEY` (reasoning) and `CODEATLAS_OPENAI_API_KEY` (embeddings) to your existing root `.env` and restart the API. Set `CODEATLAS_REASONING_PROVIDER=anthropic` and remove any old `CODEATLAS_ANSWER_MODEL=gpt-4.1-mini` override to use the Claude default. Do not put the key in browser code or a `NEXT_PUBLIC_` variable.
+1. Add `CODEATLAS_ANTHROPIC_API_KEY` (reasoning) to your root `.env`. For local embeddings, follow the [local model setup](docs/rag-evaluation.md), set `CODEATLAS_EMBEDDING_PROVIDER=local`, and restart the API. OpenAI embeddings remain optional with `CODEATLAS_EMBEDDING_PROVIDER=openai` and `CODEATLAS_OPENAI_API_KEY`. Set `CODEATLAS_REASONING_PROVIDER=anthropic` and remove any old `CODEATLAS_ANSWER_MODEL=gpt-4.1-mini` override to use the Claude default. Do not put the key in browser code or a `NEXT_PUBLIC_` variable.
 2. Open a ready or partial snapshot at [localhost:3000](http://localhost:3000), select **Ask**, then **Build semantic index**. Existing snapshots work without reimporting.
 3. Choose **Hybrid + dependencies** or **Semantic baseline**. Use **Preview context** to inspect retrieval before generating an answer. Preview makes one query-embedding call and no answer-model call.
 4. Ask a specific implementation question. Click a cited path to open its exact source range; return to Ask to retain the answer. Expand **Inspect supporting excerpts** to review the actual context.
 
-Indexing sends eligible source excerpts to OpenAI's embedding endpoint and stores vectors locally. Answer generation sends the question to the selected reasoning provider together with at most six retrieved excerpts; it does not send the entire repository. Usage may incur provider charges. The default models are `text-embedding-3-small` for embeddings and `claude-sonnet-5` for answers/agent decisions, configurable through `CODEATLAS_EMBEDDING_MODEL` and `CODEATLAS_ANSWER_MODEL`. Changing the embedding model makes existing indexes stale and requires rebuilding; changing the answer model does not.
+Local indexing embeds eligible source excerpts on the API server CPU; OpenAI mode sends them to its embedding endpoint. Both store vectors locally. Answer generation sends the question to the selected reasoning provider together with at most six retrieved excerpts; it does not send the entire repository. Usage may incur provider charges. Local mode uses pinned `all-MiniLM-L6-v2`; OpenAI mode defaults to `text-embedding-3-small` (`CODEATLAS_EMBEDDING_MODEL`). Reasoning defaults to `claude-sonnet-5` (`CODEATLAS_ANSWER_MODEL`). Changing the embedding model makes existing indexes stale and requires rebuilding; changing the answer model does not.
 
 | Route under `/api/repositories/{id}` | Behavior |
 | --- | --- |
@@ -192,6 +192,8 @@ Four of the six context slots retain the highest fused results. Up to two slots 
 Expand **Retrieved context** below an answer or preview to see source locations, cosine similarity, keyword score, exact-match presence, fusion score, and dependency provenance. These describe selection, not answer confidence. Preview results are labeled with the submitted question and mode; a later Ask request runs retrieval again rather than trusting a stale preview.
 
 ### Retrieval evaluation
+
+The [24-case RAG benchmark](docs/rag-evaluation.md) and [measured results](docs/rag-results-review.md) adds real local embeddings, four retrieval ablations, unsupported/adversarial questions, and cited-answer evaluation through production indexing and Q&A. Saved reports distinguish service failures, structural citation checks, and manual factual review.
 
 Twelve curated questions cover known symbols and multi-file flows in [evaluation/questions.json](apps/api/evaluation/questions.json). They are a small regression fixture, not a held-out production benchmark.
 

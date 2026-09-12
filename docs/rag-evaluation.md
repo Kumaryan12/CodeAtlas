@@ -15,6 +15,8 @@ Set `CODEATLAS_EMBEDDING_PROVIDER=local` in `.env`, retain the configured Anthro
 
 The model is [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), pinned to revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`, with 384-dimensional vectors. This is a generic English encoder, not a code-specialized model. Its normal 256-token limit would truncate long code chunks. Our adapter splits into 254 content-token windows, adds CLS/SEP, uses attention-masked mean pooling and normalization, then combines window vectors weighted by content-token count and normalizes again. This preserves the tail but can dilute specific details. The model revision, pooling version, and chunk version participate in the index fingerprint.
 
+Measured results and qualitative source review: [RAG results](rag-results-review.md).
+
 ## Reproduce
 
 ```sh
