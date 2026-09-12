@@ -2,7 +2,11 @@
 
 **Codebase intelligence, grounded in source.** Import a public GitHub repository and explore a commit-pinned snapshot of its Python, JavaScript, and TypeScript files, functions, classes, methods, and imports.
 
-**Current milestone: 7 — sandboxed tests.** Importing and exploring code requires no AI key. Claude is the default for cited answers and agent decisions; semantic indexing supports local CPU embeddings without a second API key, or optional OpenAI embeddings. A bounded agent can investigate snapshots or prepare isolated source drafts with downloadable diffs. Explicitly authorized tests run in bounded containers with versioned results and controlled agent retries.
+**A portfolio project in applied agentic AI and Python.** Claude investigates source and proposes bounded draft changes; local embeddings support hybrid retrieval. Deterministic analysis supplies dependency and supported Python data-flow views. Drafts can be reviewed and tested in restricted Docker containers before a patch is downloaded.
+
+**Start here:** [resume and interview package](docs/resume-ready.md) · [five-minute demo](docs/demo.md) · [readiness evidence](docs/resume-readiness-evidence.md) · [project audit](docs/project-audit.md)
+
+Measured retrieval: **98.1% Recall@6** for hybrid search on **18 labelled questions within a 24-case synthetic benchmark**. This is retrieval coverage, not answer accuracy. The project preserves failed runs and documents provider, citation-quality and static-analysis limits.
 
 ## What works
 
@@ -11,13 +15,13 @@
 - Python AST and JavaScript/TypeScript Tree-sitter parsing, including JSX/TSX, symbol parameters, parent relationships, and exact line ranges.
 - PostgreSQL snapshot persistence with Alembic migrations, transactional bulk writes, and recorded import failures.
 - Repository selection, searchable file tree, syntax-highlighted code, symbol navigation, file statistics, and parser warnings.
-- React Flow architecture view with resolved imports, dependency inspection, cycle highlighting, filtering, and source navigation.
+- Separate Dependency and Python Data Flow views with arrow labels, source evidence, cycle highlighting, filtering, and optional unconnected nodes.
 - Symbol-first semantic indexing, snapshot-scoped hybrid retrieval, an AI provider interface, and an Ask view with clickable source citations.
 - Semantic/keyword/exact-symbol rank fusion, bounded import expansion, context previews, and per-excerpt retrieval diagnostics.
 - Read-only investigations with model-selected steps, a fixed tool registry, persisted run history, live traces, and source-grounded findings.
 - Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
-Latest [project audit, metrics, improvements and interview guide](docs/project-audit.md) includes fresh all-opt-in tests, verified hosted CI, and the mixed outcome of a live Claude repair demo.
+Latest [project audit, metrics, improvements and interview guide](docs/project-audit.md) includes fresh all-opt-in tests, verified hosted CI, and the original mixed outcome of a live Claude repair demo. The [readiness follow-up](docs/resume-readiness-evidence.md) diagnoses the final-response failure and records subsequent runs.
 
 ## Quick start
 

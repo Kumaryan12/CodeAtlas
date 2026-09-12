@@ -1,0 +1,164 @@
+{
+  "created_at": "2026-09-12T19:45:37.312241+00:00",
+  "verified_core_commit": "b05a6c4",
+  "backend": {
+    "tests": 242,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "backend_duration_seconds": 63.65,
+  "backend_opt_ins": [
+    "CODEATLAS_TEST_DOCKER=1",
+    "CODEATLAS_TEST_LOCAL_EMBEDDINGS=1"
+  ],
+  "frontend": {
+    "tests": 23,
+    "note": "Unchanged frontend; previous audit and hosted CI verified tests/build."
+  },
+  "ci": {
+    "conclusion": "success",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "Python, migrations and retrieval baseline"
+      },
+      {
+        "conclusion": "success",
+        "name": "Frontend tests and production build"
+      },
+      {
+        "conclusion": "success",
+        "name": "Real Docker execution boundaries"
+      }
+    ],
+    "status": "completed"
+  },
+  "ci_url": "https://github.com/Kumaryan12/CodeAtlas/actions/runs/34714931552",
+  "scripted_agent": {
+    "passed": true,
+    "groups": {
+      "guardrail": {
+        "passed": 4,
+        "total": 4
+      },
+      "task": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "diagnostic_failure": {
+    "status": "failed",
+    "error": "invalid_agent_decision",
+    "validation_summary": "Model step failed validation: answer.claims.item.citation_ids: too_short; answer.claims.item.citation_ids: too_short",
+    "usage": {
+      "recorded_calls": 7,
+      "tokens_complete": true,
+      "known_input_tokens": 24547,
+      "known_output_tokens": 2221,
+      "provider_duration_ms": 36715,
+      "estimated_cost_usd": null
+    }
+  },
+  "followup": {
+    "attempts": 3,
+    "mechanical_passes": 3,
+    "median_duration_ms": 36031,
+    "model_calls": 23,
+    "input_tokens": 91358,
+    "output_tokens": 6200,
+    "estimated_cost_usd": null,
+    "citation_support_flags": [
+      {
+        "run": 1,
+        "issue": "Draft change cites original source"
+      },
+      {
+        "run": 3,
+        "issue": "Original implementation claim cites only tests"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "artifact": "run-1.json",
+      "passed": true,
+      "checks": {
+        "baseline_failed": true,
+        "run_completed": true,
+        "only_auth_changed": true,
+        "snapshot_unchanged": true,
+        "independent_tests_passed": true,
+        "agent_tested_final_draft": true
+      },
+      "usage": {
+        "recorded_calls": 8,
+        "tokens_complete": true,
+        "known_input_tokens": 32247,
+        "known_output_tokens": 2059,
+        "provider_duration_ms": 31732,
+        "estimated_cost_usd": null
+      },
+      "duration_ms": 35091,
+      "fixture_sha256": "956dd02bcea6728d89e2a9a32b3c921ad7a31ace1ca26108c1f3b2bffe794a84",
+      "prompt_sha256": null,
+      "task_sha256": null
+    },
+    {
+      "artifact": "run-2.json",
+      "passed": true,
+      "checks": {
+        "baseline_failed": true,
+        "run_completed": true,
+        "only_auth_changed": true,
+        "snapshot_unchanged": true,
+        "independent_tests_passed": true,
+        "agent_tested_final_draft": true
+      },
+      "usage": {
+        "recorded_calls": 8,
+        "tokens_complete": true,
+        "known_input_tokens": 32269,
+        "known_output_tokens": 2113,
+        "provider_duration_ms": 32681,
+        "estimated_cost_usd": null
+      },
+      "duration_ms": 36031,
+      "fixture_sha256": "956dd02bcea6728d89e2a9a32b3c921ad7a31ace1ca26108c1f3b2bffe794a84",
+      "prompt_sha256": "9a744ddd3aa23498441483c25bdd3bbfd52fb85d19a559a64b45d735b3f06c16",
+      "task_sha256": "c7e8abcf5fa4cfd68013adb5e3b54c3f5ca81d9d5a3ed858f6f13bcde6a8009d"
+    },
+    {
+      "artifact": "run-3.json",
+      "passed": true,
+      "checks": {
+        "baseline_failed": true,
+        "run_completed": true,
+        "only_auth_changed": true,
+        "snapshot_unchanged": true,
+        "independent_tests_passed": true,
+        "agent_tested_final_draft": true
+      },
+      "usage": {
+        "recorded_calls": 7,
+        "tokens_complete": true,
+        "known_input_tokens": 26842,
+        "known_output_tokens": 2028,
+        "provider_duration_ms": 38644,
+        "estimated_cost_usd": null
+      },
+      "duration_ms": 40966,
+      "fixture_sha256": "956dd02bcea6728d89e2a9a32b3c921ad7a31ace1ca26108c1f3b2bffe794a84",
+      "prompt_sha256": "9a744ddd3aa23498441483c25bdd3bbfd52fb85d19a559a64b45d735b3f06c16",
+      "task_sha256": "c7e8abcf5fa4cfd68013adb5e3b54c3f5ca81d9d5a3ed858f6f13bcde6a8009d"
+    }
+  ],
+  "limitations": [
+    "One synthetic repair task, three follow-up attempts; not general repair accuracy.",
+    "No auto-retry was added; diagnostic and original failures retained separately.",
+    "Claim faithfulness remains imperfect despite valid citation IDs.",
+    "Run 1 predates prompt/task hash recording; its model and fixture hash are recorded.",
+    "Visual browser interaction remains unverified."
+  ]
+}
