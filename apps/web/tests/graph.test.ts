@@ -22,7 +22,7 @@ test("focus includes direct imports and dependents, excluding unrelated files", 
 test("filters and canvas cap expose the omitted count without dangling edges", () => {
   const nodes = Array.from({ length: 250 }, (_, index) => node(`file-${index}`));
   const data = graph(nodes, [edge("file-0", "file-249")]);
-  const visible = visibleGraph(data, "", "", null);
+  const visible = visibleGraph(data, "", "", null, 200, true);
   assert.equal(visible.total, 250);
   assert.equal(visible.nodes.length, 200);
   const ids = new Set(visible.nodes.map((item) => item.id));
@@ -64,4 +64,24 @@ test("dense layers pack without overlapping cards or reversing import direction"
   const ys = layout.map((item) => item.position.y);
   assert.ok(Math.max(...ys) - Math.min(...ys) < 2000, "a dense layer should not become one tall stack");
   assert.deepEqual(layoutGraph([...nodes].reverse(), [...edges].reverse(), []), layout);
+});
+
+
+test("unconnected files are hidden per view and can be restored without hiding incoming-only nodes", () => {
+  const nodes = [node("producer"), node("consumer"), node("alone"), node("self")];
+  for (const relationship of ["imports", "data_flow"] as const) {
+    const links = [edge("producer", "consumer"), edge("self", "self")].map((item) => ({ ...item, relationship }));
+    const data = graph(nodes, links);
+    const connected = visibleGraph(data, "", "", null);
+    assert.deepEqual(connected.nodes.map((item) => item.id), ["consumer", "producer"]);
+    assert.equal(connected.unconnectedCount, 2);
+    assert.equal(connected.edges.length, 1);
+    const all = visibleGraph(data, "", "", null, 200, true);
+    assert.equal(all.nodes.length, 4);
+    assert.equal(all.edges.length, 2);
+    assert.equal(visibleGraph(data, "alone", "", null).total, 0);
+    assert.equal(visibleGraph(data, "alone", "", null, 200, true).total, 1);
+  }
+  assert.equal(visibleGraph(graph(nodes, []), "", "", null).nodes.length, 0);
+  assert.equal(visibleGraph(graph(nodes, []), "", "", null, 200, true).nodes.length, 4);
 });

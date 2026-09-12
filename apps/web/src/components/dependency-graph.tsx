@@ -14,6 +14,7 @@ export function DependencyGraphView({ repositoryId, activeId, onSelect, onOpenCo
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("");
+  const [showUnconnected, setShowUnconnected] = useState(false);
   const [focus, setFocus] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [layoutVersion, setLayoutVersion] = useState(0);
@@ -24,7 +25,7 @@ export function DependencyGraphView({ repositoryId, activeId, onSelect, onOpenCo
       .catch((reason: Error) => { if (!controller.signal.aborted) setError(reason.message); });
     return () => controller.abort();
   }, [repositoryId, attempt, view]);
-  const visible = useMemo(() => graph ? visibleGraph(graph, query, language, focus ? activeId : null) : null, [graph, query, language, focus, activeId]);
+  const visible = useMemo(() => graph ? visibleGraph(graph, query, language, focus ? activeId : null, 200, showUnconnected) : null, [graph, query, language, focus, activeId, showUnconnected]);
   const changeView = (next: "dependency" | "data_flow") => { if (next !== view) { setGraph(null); setError(""); setView(next); } };
   const viewSwitch = <div className="graph-scope" role="group" aria-label="Architecture view"><button aria-pressed={!isFlow} onClick={() => changeView("dependency")}>Dependencies</button><button aria-pressed={isFlow} onClick={() => changeView("data_flow")}>Data Flow</button></div>;
   if (error) return <section>{viewSwitch}<div className="notice error" role="alert">{error} <button className="secondary-button" onClick={() => { setError(""); setAttempt(attempt + 1); }}>Retry graph</button></div></section>;
@@ -54,12 +55,13 @@ export function DependencyGraphView({ repositoryId, activeId, onSelect, onOpenCo
       <div className="graph-scope" role="group" aria-label="Graph scope"><button aria-pressed={!focus} onClick={() => setFocus(false)}>Overview</button><button aria-pressed={focus} disabled={!activeId} onClick={() => setFocus(true)}>Neighborhood</button></div>
       <button className="graph-reset" onClick={() => setLayoutVersion((value) => value + 1)}>Reset layout</button>
     </div>
+    {visible.unconnectedCount > 0 && <button className="secondary-button" aria-pressed={showUnconnected} onClick={() => setShowUnconnected(!showUnconnected)}>{showUnconnected ? "Hide" : "Show"} unconnected files ({visible.unconnectedCount})</button>}
     {!!directories.length && <div className="graph-directories" aria-label="Directory shortcuts"><span>JUMP TO</span>{directories.slice(0, 8).map((directory) => <button key={directory} aria-pressed={query === directory} onClick={() => setQuery(query === directory ? "" : directory)}>{directory}</button>)}</div>}
-    <div className="graph-display-status"><span role="status"><strong>{visible.nodes.length}</strong> of {visible.total} matching files · {visible.edges.length} visible connections{focus && " · selected file + direct neighbors"}</span>{(query || language || focus) && <button onClick={resetFilters}>Clear filters</button>}</div>
+    <div className="graph-display-status"><span role="status"><strong>{visible.nodes.length}</strong> of {visible.total} matching files · {visible.edges.length} visible connections{focus && " · selected file + direct neighbors"}{!showUnconnected && visible.unconnectedCount > 0 && ` · ${visible.unconnectedCount} unconnected files hidden`}</span>{(query || language || focus) && <button onClick={resetFilters}>Clear filters</button>}</div>
     {visible.total > visible.nodes.length && <p className="notice warning">The canvas shows the first 200 matching files. Narrow the path or choose Neighborhood for a closer view.</p>}
     <div className="graph-layout">
       {visible.nodes.length ? <GraphCanvas key={`${view}:${layoutVersion}:${visible.nodes.map((node) => node.id).join(",")}`} graph={graph} visible={visible} dataFlow={isFlow} activeId={activeId} onSelect={onSelect} />
-        : <div className="graph-empty"><span>⌕</span><h3>No matching files</h3><p className="muted">Try a different path or expand the graph scope.</p><button className="secondary-button" onClick={resetFilters}>Clear filters</button></div>}
+        : <div className="graph-empty"><span>⌕</span><h3>{!showUnconnected && visible.unconnectedCount > 0 ? "No connected files match" : "No matching files"}</h3><p className="muted">{!showUnconnected && visible.unconnectedCount > 0 ? "Use Show unconnected files to include files with no detected connections to other files in this view, or clear the filters." : "Try a different path or expand the graph scope."}</p><button className="secondary-button" onClick={resetFilters}>Clear filters</button></div>}
       <aside className="dependency-inspector" aria-label="Selected file connections">
         {selected ? <>
           <div className="inspector-heading"><p className="eyebrow">FILE DETAILS</p><span className="graph-file-icon" style={{ color: languageColors[selected.language] }}>{languageLabels[selected.language] ?? "{}"}</span></div>

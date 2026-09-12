@@ -12,19 +12,22 @@ export type DependencyGraph = {
   cycles: string[][]; notes: string[]; legacy_files: number;
 };
 
-export function visibleGraph(graph: DependencyGraph, query: string, language: string, focus: string | null, limit = 200) {
+export function visibleGraph(graph: DependencyGraph, query: string, language: string, focus: string | null, limit = 200, showUnconnected = false) {
   const neighbors = new Set<string>(focus ? [focus] : []);
   if (focus) for (const edge of graph.edges) {
     if (edge.source === focus) neighbors.add(edge.target);
     if (edge.target === focus) neighbors.add(edge.source);
   }
+  const connected = new Set(graph.edges.filter((edge) => edge.source !== edge.target).flatMap((edge) => [edge.source, edge.target]));
+  const unconnectedCount = graph.nodes.filter((node) => !connected.has(node.id)).length;
   const matching = graph.nodes.filter((node) =>
+    (showUnconnected || connected.has(node.id)) &&
     node.file.toLowerCase().includes(query.toLowerCase()) && (!language || node.language === language) &&
     (!focus || neighbors.has(node.id)));
   matching.sort((a, b) => Number(b.id === focus) - Number(a.id === focus) || a.file.localeCompare(b.file));
   const nodes = matching.slice(0, limit);
   const ids = new Set(nodes.map((node) => node.id));
-  return { nodes, edges: graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)), total: matching.length };
+  return { nodes, edges: graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)), total: matching.length, unconnectedCount };
 }
 
 export function layoutGraph(nodes: GraphNode[], edges: GraphEdge[], cycles: string[][]) {

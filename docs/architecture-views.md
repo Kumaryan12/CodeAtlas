@@ -2,6 +2,8 @@
 
 Open a completed snapshot, choose **Architecture**, then select **Dependencies** or **Data Flow**. Both views reuse stored snapshot data: no reimport, embeddings, API key, or LLM call is required.
 
+Files with no detected connections to **other files** in the selected view are hidden by default. Use **Show unconnected files** to include them, or **Hide unconnected files** to return to the connected view. Incoming-only connections count; a self-loop alone does not. Path/language filters do not change whether a file has connections in the full selected graph. In Data Flow, hidden files may have unsupported flow; they are not proven independent.
+
 ## Arrow meanings
 
 **Dependencies**: A → B means file A imports file B. Each edge retains import evidence. These arrows describe code structure, not processing order.
