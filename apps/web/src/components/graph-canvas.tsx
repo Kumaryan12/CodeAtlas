@@ -15,8 +15,8 @@ function CanvasActions({ activeId }: { activeId: string | null }) {
   </Panel>;
 }
 
-export function GraphCanvas({ graph, visible, activeId, onSelect }: {
-  graph: DependencyGraph; visible: ReturnType<typeof visibleGraph>; activeId: string | null; onSelect: (id: string) => void;
+export function GraphCanvas({ graph, visible, activeId, onSelect, dataFlow = false }: {
+  dataFlow?: boolean; graph: DependencyGraph; visible: ReturnType<typeof visibleGraph>; activeId: string | null; onSelect: (id: string) => void;
 }) {
   const [showMap, setShowMap] = useState(false);
   const initialNodes = useMemo(() => {
@@ -48,11 +48,14 @@ export function GraphCanvas({ graph, visible, activeId, onSelect }: {
       id: edge.id, source: edge.source, target: edge.target, type: "smoothstep",
       markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
       style: { stroke: color, strokeWidth: related ? 2 : 1.25, opacity: highlight && !related ? .25 : .85, strokeDasharray: edge.evidence.some((item) => item.resolution === "python_inferred_root") ? "5 4" : undefined },
+      label: dataFlow ? "passes value" : "imports",
+      labelStyle: { fill: "#c8d1e5", fontSize: 10 },
+      labelBgStyle: { fill: "#171d2b" },
       zIndex: related ? 2 : 0,
     };
   });
   const visibleSelection = visible.nodes.some((node) => node.id === activeId) ? activeId : null;
-  return <div className="graph-canvas" aria-label="Repository import graph">
+  return <div className="graph-canvas" aria-label={dataFlow ? "Repository data-flow graph" : "Repository import graph"}>
     <ReactFlow nodes={nodes.map((node) => ({ ...node, selected: node.id === activeId, style: { ...node.style, opacity: highlight && !connected.has(node.id) ? .4 : 1 } }))} edges={edges}
       onNodesChange={onNodesChange} onNodeClick={(_, node) => onSelect(node.id)}
       nodesConnectable={false} edgesReconnectable={false} deleteKeyCode={null}

@@ -36,7 +36,7 @@ async function proxy(request: NextRequest, context: Context) {
     body = Buffer.concat(chunks).toString("utf8");
   }
   const upstream = new URL(`${process.env.API_BASE_URL ?? "http://127.0.0.1:8000"}/api/repositories${parts.length ? `/${parts.join("/")}` : ""}`);
-  for (const key of ["limit", "offset", "file_id"]) {
+  for (const key of ["limit", "offset", "file_id", "view"]) {
     const value = request.nextUrl.searchParams.get(key);
     if (value !== null) upstream.searchParams.set(key, value);
   }

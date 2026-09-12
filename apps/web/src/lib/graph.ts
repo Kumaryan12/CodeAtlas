@@ -3,8 +3,8 @@ export type GraphNode = {
   symbol_count: number; warning: string | null;
 };
 export type GraphEdge = {
-  id: string; source: string; target: string; relationship: "imports"; in_cycle: boolean;
-  evidence: { specifier: string; line: number | null; kind: string; resolution: string }[];
+  id: string; source: string; target: string; relationship: "imports" | "data_flow"; in_cycle: boolean;
+  evidence: { specifier: string; line: number | null; kind: string; resolution: string; context_file_id?: string | null; context_file_path?: string | null }[];
 };
 export type DependencyGraph = {
   repository_id: string; nodes: GraphNode[]; edges: GraphEdge[];

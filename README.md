@@ -71,7 +71,9 @@ A snapshot with malformed source is marked `partial`; unaffected files and reada
 
 ## Exploring architecture
 
-Select **Architecture** beside **Code** after choosing a completed snapshot.
+Select **Architecture** beside **Code** after choosing a completed snapshot. Switch between **Dependencies** (importer → imported file) and **Data Flow** (supported Python return values → consumer functions). The [two-view guide](docs/architecture-views.md) explains evidence and coverage limits. Data Flow uses stored source and needs no reimport or LLM call.
+
+In Dependencies:
 
 - Drag nodes, pan, zoom, use the fit-view control, or navigate with the minimap.
 - An arrow points from the importing file to its dependency. Amber edges belong to a cycle group; dashed edges use inferred Python roots.

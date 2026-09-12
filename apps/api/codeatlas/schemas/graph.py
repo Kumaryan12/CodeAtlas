@@ -30,13 +30,15 @@ class EdgeEvidence(BaseModel):
     line: int | None
     kind: str
     resolution: str
+    context_file_id: str | None = None
+    context_file_path: str | None = None
 
 
 class GraphEdge(BaseModel):
     id: str
     source: str
     target: str
-    relationship: Literal["imports"] = "imports"
+    relationship: Literal["imports", "data_flow"] = "imports"
     evidence: list[EdgeEvidence] = Field(default_factory=list)
     in_cycle: bool = False
 

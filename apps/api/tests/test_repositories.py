@@ -202,3 +202,33 @@ def test_persisted_graph_resolves_python_and_captured_aliases(api, monkeypatch):
         for edge in graph["edges"]
         for evidence in edge["evidence"]
     )
+
+
+def test_data_flow_view_has_scoped_evidence_and_validates_view(api, monkeypatch):
+    def download(self, repository, workspace):
+        make_archive(
+            workspace / "repository.tar.gz",
+            {
+                "repo/__init__.py": b"",
+                "repo/data.py": b"def load():\n    return [1]\n",
+                "repo/model.py": b"def train(rows):\n    return rows\n",
+                "repo/main.py": b"from .data import load\n"
+                b"from .model import train\ntrain(load())\n",
+            },
+        )
+        return Snapshot(repository.full_name, repository.url, "main", "b" * 40, None)
+
+    monkeypatch.setattr("codeatlas.services.import_repository.GitHubClient.download", download)
+    repo = api.post("/api/repositories", json={"url": "https://github.com/example/flow"}).json()
+    prefix = f"/api/repositories/{repo['id']}/graph"
+    graph = api.get(prefix + "?view=data_flow").json()
+    paths = {node["id"]: node["file"] for node in graph["nodes"]}
+    assert [(paths[e["source"]], paths[e["target"]]) for e in graph["edges"]] == [
+        ("data.py", "model.py")
+    ]
+    evidence = graph["edges"][0]["evidence"][0]
+    assert paths[evidence["context_file_id"]] == evidence["context_file_path"] == "main.py"
+    assert evidence["line"] == 3
+    assert all(e["relationship"] == "imports" for e in api.get(prefix).json()["edges"])
+    assert api.get(prefix + "?view=guessed").status_code == 422
+    assert api.get(f"/api/repositories/{uuid4()}/graph?view=data_flow").status_code == 404

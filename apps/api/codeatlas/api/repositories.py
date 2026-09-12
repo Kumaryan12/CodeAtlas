@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -19,7 +19,7 @@ from codeatlas.schemas.repository import (
     SymbolList,
     SymbolResponse,
 )
-from codeatlas.services.dependency_graph import snapshot_graph
+from codeatlas.services.dependency_graph import snapshot_data_flow, snapshot_graph
 from codeatlas.services.import_repository import import_repository
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
@@ -170,8 +170,14 @@ def list_symbols(
 
 
 @router.get("/{repository_id}/graph", response_model=DependencyGraph)
-def repository_graph(repository_id: UUID, session: Database):
+def repository_graph(
+    repository_id: UUID, session: Database, view: Literal["dependency", "data_flow"] = "dependency"
+):
     repository = get_repository(session, repository_id)
     if repository.status not in {"ready", "partial"}:
         raise DomainError("graph_not_ready", "A completed repository snapshot is required.", 409)
-    return snapshot_graph(session, repository)
+    return (
+        snapshot_data_flow(session, repository)
+        if view == "data_flow"
+        else snapshot_graph(session, repository)
+    )
