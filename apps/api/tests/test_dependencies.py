@@ -259,3 +259,34 @@ def test_nested_stdlib_named_module_does_not_infer_a_false_self_cycle():
     assert not graph.edges
     assert not graph.cycles
     assert graph.unresolved[0].specifier == "logging"
+
+
+def test_repository_root_package_resolves_imports_without_inventing_data_flow():
+    graph = build_graph(
+        "repo",
+        [
+            file("__init__.py", "from . import model"),
+            file("main.py", "from .data import load\nfrom .model import train"),
+            file("data.py", "from .config import CACHE"),
+            file("model.py"),
+            file("config.py"),
+            file("sub/worker.py", "from ..data import load\nfrom ...outside import secret"),
+        ],
+        [],
+    )
+    assert pairs(graph) == {
+        ("__init__.py", "__init__.py"),
+        ("__init__.py", "model.py"),
+        ("main.py", "data.py"),
+        ("main.py", "model.py"),
+        ("data.py", "config.py"),
+        ("sub/worker.py", "data.py"),
+    }
+    assert len(graph.unresolved) == 1
+    assert graph.unresolved[0].reason == "relative_import_outside_package"
+
+
+def test_root_relative_import_without_package_marker_stays_unresolved():
+    graph = build_graph("repo", [file("main.py", "from .data import load"), file("data.py")], [])
+    assert not graph.edges
+    assert graph.unresolved[0].reason == "relative_import_outside_package"

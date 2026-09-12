@@ -78,7 +78,9 @@ class ImportResolver:
             parts = list(PurePosixPath(importer.path).parent.parts)
             if parts == ["."]:
                 parts = []
-            if level > len(parts):
+            root_init = self.files.get("__init__.py")
+            root_is_package = root_init is not None and root_init.language == "python"
+            if level > len(parts) + int(root_is_package):
                 return [], "relative_import_outside_package", []
             base = "/".join(parts[: len(parts) - level + 1])
             tail = module[level:].replace(".", "/")
@@ -87,10 +89,12 @@ class ImportResolver:
                 return [], "invalid_specifier", []
 
             def lookup(name: str) -> list[str]:
+                paths = (name + ".py", posixpath.join(name, "__init__.py"))
                 return [
-                    p
-                    for p in (name + ".py", name + "/__init__.py")
-                    if p in self.files and self.files[p].language == "python"
+                    normalized
+                    for path in paths
+                    if (normalized := posixpath.normpath(path)) in self.files
+                    and self.files[normalized].language == "python"
                 ]
 
             candidates = lookup(target_base)
