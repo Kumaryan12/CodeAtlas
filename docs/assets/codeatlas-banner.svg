@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
+  <title id="title">CodeAtlas — Understand the code. Inspect the evidence.</title>
+  <desc id="desc">Dark navy banner with a mint and blue connected-node motif. Agentic code intelligence, grounded in source.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101b30"/><stop offset="1" stop-color="#080e1b"/></linearGradient>
+    <linearGradient id="accent"><stop stop-color="#78e2c5"/><stop offset="1" stop-color="#86adff"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#23324b" stroke-width="0.6"/></pattern>
+  </defs>
+  <rect width="1280" height="320" rx="20" fill="url(#bg)"/>
+  <rect x="730" width="550" height="320" rx="20" fill="url(#grid)" opacity=".5"/>
+  <rect x="48" y="47" width="4" height="30" rx="2" fill="url(#accent)"/>
+  <text x="68" y="68" fill="#99b1cc" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="3">AGENTIC CODE INTELLIGENCE</text>
+  <text x="48" y="160" fill="#f0f5fc" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="700" letter-spacing="-3">Code<tspan fill="#83dfc7">Atlas</tspan></text>
+  <text x="52" y="204" fill="#becce0" font-family="Arial, Helvetica, sans-serif" font-size="23">Understand the code. Inspect the evidence.</text>
+  <text x="52" y="266" fill="#839bb7" font-family="Arial, Helvetica, sans-serif" font-size="13" letter-spacing="2">EXPLORE  /  INVESTIGATE  /  REVIEW  /  TEST</text>
+  <g fill="none" stroke-width="2">
+    <path d="M869 95L1020 160L1161 83M1020 160L1150 258M1020 160L867 253" stroke="#3a5677"/>
+    <path d="M869 95L867 253M1161 83L1150 258" stroke="#233a56" stroke-dasharray="5 8"/>
+    <circle cx="1020" cy="160" r="62" stroke="#213955"/>
+    <circle cx="1020" cy="160" r="42" fill="#132839" stroke="#7fdec4"/>
+    <rect x="845" y="71" width="48" height="48" rx="12" fill="#152338" stroke="#86adff"/>
+    <rect x="1137" y="59" width="48" height="48" rx="12" fill="#152338" stroke="#86adff"/>
+    <rect x="843" y="229" width="48" height="48" rx="12" fill="#152338" stroke="#547491"/>
+    <rect x="1126" y="234" width="48" height="48" rx="12" fill="#152338" stroke="#7fdec4"/>
+    <path d="M1012 145L999 160L1012 175M1028 145L1041 160L1028 175" stroke="#c2f5e7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#8cafcf"><circle cx="869" cy="95" r="5"/><circle cx="1161" cy="83" r="5"/><circle cx="867" cy="253" r="5"/><circle cx="1150" cy="258" r="5"/></g>
+  <rect x="0" y="316" width="1280" height="4" fill="url(#accent)"/>
+</svg>
