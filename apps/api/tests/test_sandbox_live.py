@@ -88,8 +88,11 @@ def test_real_failure_and_no_tests(tmp_path):
     assert "AssertionError" in result.stderr
 
 
-def test_real_output_limit(tmp_path):
-    result = run(tmp_path, {"test_flood.py": 'import os\nwhile True: os.write(1, b"x" * 4096)\n'})
+@pytest.mark.parametrize("stream", [1, 2])
+def test_real_output_limit(tmp_path, stream):
+    result = run(
+        tmp_path, {"test_flood.py": f'import os\nwhile True: os.write({stream}, b"x" * 4096)\n'}
+    )
     assert result.status == "output_limit", result
     assert len(result.stdout) + len(result.stderr) <= docker.MAX_OUTPUT
 

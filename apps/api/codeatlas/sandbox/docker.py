@@ -169,15 +169,24 @@ def run_container(source: Path, profile: str, image_id: str) -> Outcome:
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, DomainError):
         result = Outcome("error", None, error_code="sandbox_unavailable")
     finally:
-        # PID 1 timeout bounds execution even if the API dies or Docker disconnects.
+        # Detach the bounded reader first. A stopped reader can fill the attach pipe,
+        # blocking Docker's removal while a noisy container is still producing output.
+        cleanup_failed = False
+        if process is not None:
+            try:
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=2)
+            except (OSError, subprocess.SubprocessError):
+                cleanup_failed = True
+            finally:
+                process.stdout.close()
+                process.stderr.close()
+        # Always attempt removal, even if client cleanup failed. PID 1 also has a timeout.
         try:
             docker_command(["rm", "--force", name])
         except DomainError:
+            cleanup_failed = True
+        if cleanup_failed:
             result = Outcome("error", None, error_code="sandbox_cleanup_failed")
-        if process is not None:
-            if process.poll() is None:
-                process.kill()
-            process.wait(timeout=2)
-            process.stdout.close()
-            process.stderr.close()
     return result
