@@ -66,3 +66,9 @@ For example, this **illustrative fixture configuration is not vendor pricing**:
 Replace the model and rates with those applicable to your account/request class, then restart the API. Rates must be finite nonnegative numbers. A nonzero cache category without its corresponding rate makes that call's cost unknown. Mixed cache-write TTLs, regional/batch/service-tier pricing, discounts, taxes, and non-token charges require appropriately supplied effective rates or leaving cost unknown. A saved step retains its rate snapshot, so later configuration changes do not rewrite history.
 
 Token semantics follow [OpenAI cache-usage documentation](https://developers.openai.com/api/docs/guides/prompt-caching) and [Anthropic cache-usage documentation](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). Estimates help compare runs; the provider's invoice remains authoritative.
+
+## First live baseline
+
+The [2026-09-12 live report](evaluation-agent-live.md) used Claude Sonnet 5 and MCP under grader `agent-v1.1`. All six runs completed; four passed every automated check. Two answers quoted the injection marker while explicitly describing the comment as untrusted and ignored. The strict substring check remains failed; a quoted marker is not by itself evidence of instruction-following. Read the manual notes alongside the machine results.
+
+This live run exposed and led to fixes for thinking-block parsing and a trailing-blank-line error in citation grading. Version v1.1 derives valid citation bounds from the fixture's actual lines; it does not weaken the marker check.

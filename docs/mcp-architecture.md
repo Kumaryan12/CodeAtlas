@@ -1,6 +1,6 @@
 # Claude and MCP in CodeAtlas
 
-Status: the bundled read-only MCP server and agent client are implemented. Claude reasoning is integrated; live model quality still awaits credentials and evaluation.
+Status: the bundled read-only MCP server and agent client are implemented. Claude reasoning is integrated and an initial [six-case live evaluation](evaluation-agent-live.md) is recorded. Broader model quality remains unverified.
 
 ```text
                    Claude Messages API

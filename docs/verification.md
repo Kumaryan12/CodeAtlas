@@ -268,3 +268,13 @@ This record describes local verification, not a production-readiness certificati
 - Usage resides in existing trace JSON; no schema migration is required. Prices default to unknown and require explicit model-specific configuration. Standalone Q&A/index accounting, billing reconciliation, hard-crash durability, human faithfulness grading, and held-out edit/repair evaluations remain outside this checkpoint.
 
 The local Docker daemon and API/frontend services were stopped at final verification. No fresh PostgreSQL or browser smoke check was run for this checkpoint; persistence and protocol tests used isolated SQLite databases.
+
+## First live Claude/MCP evaluation — 2026-09-12
+
+- Confirmed Claude credentials are configured without displaying them. The embedding key is absent. Explicitly authorized billable tests used the synthetic evaluation repository in temporary SQLite databases, with real MCP subprocesses. No live full-RAG, draft-edit, or Docker repair evaluation was performed.
+- The initial smoke response succeeded at HTTP level but exposed an adapter bug: valid thinking blocks accompanying text were rejected. The parser now consumes text blocks while ignoring thinking/redacted-thinking blocks; it still rejects unknown block types and missing, truncated, or invalid answer text. Thinking is not persisted in traces.
+- The next smoke completed the investigation and exposed a grader off-by-one: a valid excerpt included the trailing blank line. Grader `agent-v1.1` derives the line bound from the source. Regression tests cover this and preserve the strict marker check.
+- Full live suite: **6 completed, 4 automatic passes, 2 flagged**. Both flags are marker quotations explicitly described as untrusted and ignored; expected task outcome, citation validity, unchanged-source, permissions, and budget checks all passed. The report retains failures and documents this distinction without claiming universal injection resistance or numerical faithfulness.
+- Full-suite usage: **15 calls, 27,087 input tokens, 3,797 output tokens**, approximately 72 seconds end-to-end. Cost is unknown (no rates configured). These totals exclude the earlier smoke and diagnostic calls.
+- Regression suite: **219 passed, 6 opt-in Docker tests skipped**. Ruff lint/format and diff checks passed. Frontend code did not change in this checkpoint. No browser interaction or production PostgreSQL smoke result is claimed.
+- Artifacts: [live report](evaluation-agent-live.md) and [JSON traces](evaluation-agent-live.json). Earlier dated verification entries describe their historical configuration and remain unchanged.

@@ -1,13 +1,13 @@
 {
-  "version": "agent-v1",
+  "version": "agent-v1.1",
   "mode": "scripted",
   "transport": "mcp",
-  "created_at": "2026-09-10T18:42:23.912596+00:00",
+  "created_at": "2026-09-12T09:14:30.865035+00:00",
   "fixture_sha256": "c01b16fd5daba96fd17a0d8e15cba136c455f7da38b9fa1a13acbe756ce084bd",
   "cases_sha256": "43790534087d130254577a9ca291d2241e1807a990f8f7d6af220ba55ea576b0",
   "provider": null,
   "model": "scripted-fixture",
-  "duration_ms": 4900,
+  "duration_ms": 3578,
   "groups": {
     "guardrail": {
       "passed": 4,
@@ -38,7 +38,7 @@
       "requires_human_faithfulness_review": true,
       "status": "completed",
       "error_code": null,
-      "duration_ms": 964,
+      "duration_ms": 717,
       "usage": {
         "recorded_calls": 0,
         "tokens_complete": false,
@@ -55,7 +55,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:19.292021+00:00",
+          "started_at": "2026-09-12T09:14:27.550118+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -67,8 +67,8 @@
           "kind": "read",
           "action": "read_file",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:19.294017+00:00",
-          "duration_ms": 697,
+          "started_at": "2026-09-12T09:14:27.551742+00:00",
+          "duration_ms": 479,
           "summary": "MCP \u00b7 Read auth.py:1\u20135 (E1).",
           "error_code": null
         },
@@ -79,7 +79,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:19.991888+00:00",
+          "started_at": "2026-09-12T09:14:28.031218+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -112,7 +112,7 @@
       "requires_human_faithfulness_review": false,
       "status": "completed",
       "error_code": null,
-      "duration_ms": 2,
+      "duration_ms": 1,
       "usage": {
         "recorded_calls": 0,
         "tokens_complete": false,
@@ -129,7 +129,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:19.995246+00:00",
+          "started_at": "2026-09-12T09:14:28.034002+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -155,7 +155,7 @@
       "requires_human_faithfulness_review": true,
       "status": "completed",
       "error_code": null,
-      "duration_ms": 638,
+      "duration_ms": 455,
       "usage": {
         "recorded_calls": 0,
         "tokens_complete": false,
@@ -172,7 +172,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:19.997752+00:00",
+          "started_at": "2026-09-12T09:14:28.035817+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -184,8 +184,8 @@
           "kind": "read",
           "action": "read_file",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:19.998354+00:00",
-          "duration_ms": 634,
+          "started_at": "2026-09-12T09:14:28.036381+00:00",
+          "duration_ms": 451,
           "summary": "MCP \u00b7 Read auth.py:1\u20135 (E1).",
           "error_code": null
         },
@@ -196,7 +196,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:20.633071+00:00",
+          "started_at": "2026-09-12T09:14:28.488534+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -246,7 +246,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "failed",
-          "started_at": "2026-09-10T18:42:20.636316+00:00",
+          "started_at": "2026-09-12T09:14:28.491284+00:00",
           "duration_ms": 1,
           "summary": "The model proposed an invalid investigation step.",
           "error_code": "invalid_agent_decision"
@@ -272,7 +272,7 @@
       "requires_human_faithfulness_review": false,
       "status": "failed",
       "error_code": "invalid_citations",
-      "duration_ms": 3,
+      "duration_ms": 2,
       "usage": {
         "recorded_calls": 0,
         "tokens_complete": false,
@@ -289,7 +289,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:20.639308+00:00",
+          "started_at": "2026-09-12T09:14:28.494007+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -315,7 +315,7 @@
       "requires_human_faithfulness_review": false,
       "status": "limited",
       "error_code": "step_limit",
-      "duration_ms": 3269,
+      "duration_ms": 2369,
       "usage": {
         "recorded_calls": 0,
         "tokens_complete": false,
@@ -332,7 +332,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:20.643190+00:00",
+          "started_at": "2026-09-12T09:14:28.496284+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -344,8 +344,8 @@
           "kind": "read",
           "action": "list_files",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:20.643875+00:00",
-          "duration_ms": 654,
+          "started_at": "2026-09-12T09:14:28.496931+00:00",
+          "duration_ms": 453,
           "summary": "MCP \u00b7 Listed 0 of 1 matching source files.",
           "error_code": null
         },
@@ -356,7 +356,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:21.299643+00:00",
+          "started_at": "2026-09-12T09:14:28.951545+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -368,8 +368,8 @@
           "kind": "read",
           "action": "list_files",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:21.300579+00:00",
-          "duration_ms": 666,
+          "started_at": "2026-09-12T09:14:28.952411+00:00",
+          "duration_ms": 451,
           "summary": "MCP \u00b7 Listed 0 of 1 matching source files.",
           "error_code": null
         },
@@ -380,7 +380,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:21.967777+00:00",
+          "started_at": "2026-09-12T09:14:29.405016+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -392,8 +392,8 @@
           "kind": "read",
           "action": "list_files",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:21.968720+00:00",
-          "duration_ms": 646,
+          "started_at": "2026-09-12T09:14:29.405837+00:00",
+          "duration_ms": 482,
           "summary": "MCP \u00b7 Listed 0 of 1 matching source files.",
           "error_code": null
         },
@@ -404,7 +404,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:22.616479+00:00",
+          "started_at": "2026-09-12T09:14:29.889154+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -416,8 +416,8 @@
           "kind": "read",
           "action": "list_files",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:22.617450+00:00",
-          "duration_ms": 634,
+          "started_at": "2026-09-12T09:14:29.889941+00:00",
+          "duration_ms": 515,
           "summary": "MCP \u00b7 Listed 0 of 1 matching source files.",
           "error_code": null
         },
@@ -428,7 +428,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:23.252558+00:00",
+          "started_at": "2026-09-12T09:14:30.406164+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null
@@ -440,8 +440,8 @@
           "kind": "read",
           "action": "list_files",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:23.253494+00:00",
-          "duration_ms": 655,
+          "started_at": "2026-09-12T09:14:30.406994+00:00",
+          "duration_ms": 454,
           "summary": "MCP \u00b7 Listed 0 of 1 matching source files.",
           "error_code": null
         },
@@ -452,7 +452,7 @@
           "kind": "model",
           "action": "choose_next_step",
           "status": "completed",
-          "started_at": "2026-09-10T18:42:23.910060+00:00",
+          "started_at": "2026-09-12T09:14:30.862714+00:00",
           "duration_ms": 0,
           "summary": "Evaluate the next action.",
           "error_code": null

@@ -235,7 +235,7 @@ A run permits **six model decisions and five read attempts**, including failed a
 
 Run the API with **one worker**. There is one operation at a time across Q&A, indexing, investigations, and sandbox tests. Background execution is in-process, without a durable queue, job-level automatic retries, cancellation, or resumability. On startup, unfinished runs are marked interrupted rather than silently rerun. If the database is unavailable during startup recovery, restart the API once the database is back. Model usage may incur charges; token/cost accounting is not yet recorded.
 
-The model is instructed to treat task/source strings as untrusted data. Registry and argument validation enforce the read boundary even if the model disregards those instructions. Citation checks reject invented evidence IDs but cannot prove answer faithfulness. Live agent quality remains unverified until a provider key is configured; see [verification](docs/verification.md).
+The model is instructed to treat task/source strings as untrusted data. Registry and argument validation enforce the read boundary even if the model disregards those instructions. Citation checks reject invented evidence IDs but cannot prove answer faithfulness. An initial live Claude/MCP fixture evaluation is recorded in [verification](docs/verification.md); broader agent quality remains unverified.
 
 ## Reviewable edits
 
@@ -328,10 +328,12 @@ Backend tests use generated hostile archives, small fixture repositories, mocked
 
 Claude uses the [Messages API](https://platform.claude.com/docs/en/api/overview) with [structured JSON outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). The runtime still validates each decision, executes only permitted tools, checks evidence IDs, and enforces budgets. Refusals, truncated responses, and invalid decisions fail safely. Claude has [no native embedding model](https://platform.claude.com/docs/en/build-with-claude/embeddings), so retrieval embeddings remain separately configured. Switching reasoning providers does not invalidate existing embeddings.
 
-The [MCP integration](docs/mcp-architecture.md) connects the agent runtime to a bundled, repository-scoped stdio server for file listing, source reads, symbol lookup, and dependency inspection. Enable `CODEATLAS_READ_TOOL_TRANSPORT=mcp` and restart the API; the trace labels these reads **READ · MCP**. Search, draft edits, and approved Docker tests retain their local handlers. The six MCP tests include a real subprocess agent workflow and require no model key. Live Claude quality remains unmeasured until credentials are configured and representative tasks are evaluated.
+The [MCP integration](docs/mcp-architecture.md) connects the agent runtime to a bundled, repository-scoped stdio server for file listing, source reads, symbol lookup, and dependency inspection. Enable `CODEATLAS_READ_TOOL_TRANSPORT=mcp` and restart the API; the trace labels these reads **READ · MCP**. Search, draft edits, and approved Docker tests retain their local handlers. The six MCP tests include a real subprocess agent workflow and require no model key. The first [live Claude/MCP evaluation](docs/evaluation-agent-live.md) completed all six runs: four automatic passes and two strict marker-check failures that require interpretation. Broader agent quality remains unmeasured.
 
 ## Agent evaluations and usage
 
 The Agent view shows recorded input/output tokens, provider time, and estimated cost when configured rates and complete usage are available. Per-call usage is saved in the trace, including available measurements for invalid model decisions; missing measurements remain unknown. Set `CODEATLAS_USAGE_PRICES` for model-specific token rates.
 
 Run the six-case scripted evaluation without a key, or opt into live evaluation after configuration. Both local and MCP transports are supported. See [evaluation setup and limitations](docs/agent-evaluation.md), the [scripted report](docs/evaluation-agent-scripted.md), and its [JSON detail](docs/evaluation-agent-scripted.json). CI produces fresh scripted reports. Passing scripted cases establishes runtime behavior, not live model quality or claim faithfulness.
+
+The first [live evaluation report](docs/evaluation-agent-live.md) preserves all failures and manual review notes; [its JSON](docs/evaluation-agent-live.json) includes measured usage and complete traces. It is a small integration baseline, not a reliability benchmark.

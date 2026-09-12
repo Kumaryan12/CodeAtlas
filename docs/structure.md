@@ -175,6 +175,8 @@ CodeAtlas/
 ├── docs/
 │   ├── mcp-architecture.md
 │   ├── agent-evaluation.md
+│   ├── evaluation-agent-live.json
+│   ├── evaluation-agent-live.md
 │   ├── evaluation-agent-scripted.json
 │   ├── evaluation-agent-scripted.md
 │   ├── development.md
