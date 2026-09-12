@@ -51,9 +51,12 @@ class AnthropicProvider:
         blocks = data["content"]
         if not isinstance(blocks, list) or not blocks:
             raise ValueError("Missing output")
-        if any(block.get("type") != "text" for block in blocks):
+        if any(
+            block.get("type") not in {"text", "thinking", "redacted_thinking"} for block in blocks
+        ):
             raise ValueError("Unexpected output block")
-        return "".join(block["text"] for block in blocks)
+        # Independent structured decisions consume only answer text. Thinking is never persisted.
+        return "".join(block["text"] for block in blocks if block["type"] == "text")
 
     def answer(self, question: str, excerpts: list[dict]) -> ModelAnswer:
         try:

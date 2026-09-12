@@ -198,3 +198,26 @@ def test_claude_agent_runs_through_validated_tools_and_persists_model(
     assert run["model"] == "claude-sonnet-5"
     assert run["result"]["citations"][0]["file_id"] == file_id
     assert calls == 2
+
+
+@pytest.mark.parametrize("block_type", ["thinking", "redacted_thinking"])
+def test_claude_parses_answer_text_alongside_thinking(monkeypatch, block_type):
+    answer = {"status": "insufficient_context", "claims": []}
+    payload = completed(answer)
+    payload["content"].insert(0, {"type": block_type, "thinking": "not answer JSON"})
+    mock_http(monkeypatch, lambda request: httpx.Response(200, json=payload))
+    assert AnthropicProvider(settings()).answer("q", []).status == "insufficient_context"
+    payload["content"][1]["text"] = json.dumps(
+        {
+            "plan": ["Inspect source"],
+            "summary": "Insufficient evidence",
+            "action": "finish",
+            "arguments": {},
+            "answer": answer,
+        }
+    )
+    assert AnthropicInvestigator(settings()).decide({}).action == "finish"
+    payload["content"] = payload["content"][:1]
+    with pytest.raises(DomainError) as error:
+        AnthropicInvestigator(settings()).decide({})
+    assert error.value.code == "invalid_agent_decision"
