@@ -1,6 +1,8 @@
-"""Claude reasoning with separately configured OpenAI retrieval embeddings."""
+"""Claude reasoning with independently configured retrieval embeddings."""
 
 import json
+
+from pydantic import ValidationError
 
 from codeatlas.ai.investigator import (
     DECISION_SCHEMA,
@@ -13,6 +15,7 @@ from codeatlas.ai.investigator import (
     INSTRUCTIONS as AGENT_INSTRUCTIONS,
 )
 from codeatlas.ai.provider import ANSWER_SCHEMA, INSTRUCTIONS, OpenAIProvider, post_json
+from codeatlas.ai.validation import validation_summary
 from codeatlas.core.config import Settings
 from codeatlas.core.errors import DomainError
 from codeatlas.schemas.agent import AgentDecision, DraftDecision, ExecutionDecision
@@ -88,6 +91,12 @@ class AnthropicInvestigator(AnthropicProvider):
             return decision.model_validate_json(
                 self.structured(instructions, state, schema, 6000 if editing else 2400)
             )
+        except ValidationError as exc:
+            raise DomainError(
+                "invalid_agent_decision",
+                "Model step failed validation: " + validation_summary(exc),
+                502,
+            ) from exc
         except (AttributeError, KeyError, TypeError, ValueError) as exc:
             raise DomainError(
                 "invalid_agent_decision",

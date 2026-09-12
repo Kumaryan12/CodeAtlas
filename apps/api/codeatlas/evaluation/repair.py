@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from codeatlas.agents.runner import execute_run
 from codeatlas.agents.workspace import unified_diff, workspace_digest
-from codeatlas.ai.investigator import get_investigator
+from codeatlas.ai.investigator import EXECUTION_INSTRUCTIONS, get_investigator
 from codeatlas.ai.usage import summarize_usage
 from codeatlas.core.config import Settings
 from codeatlas.core.errors import DomainError
@@ -160,6 +160,8 @@ def evaluate(output):
                 "transport": config.read_tool_transport,
                 "fixture_sha256": hashlib.sha256((SOURCE + TESTS).encode()).hexdigest(),
                 "task": TASK,
+                "task_sha256": hashlib.sha256(TASK.encode()).hexdigest(),
+                "prompt_sha256": hashlib.sha256(EXECUTION_INSTRUCTIONS.encode()).hexdigest(),
                 "baseline": asdict(baseline),
                 "validation": asdict(validation),
                 "status": run.status,

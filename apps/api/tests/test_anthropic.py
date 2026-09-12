@@ -221,3 +221,60 @@ def test_claude_parses_answer_text_alongside_thinking(monkeypatch, block_type):
     with pytest.raises(DomainError) as error:
         AnthropicInvestigator(settings()).decide({})
     assert error.value.code == "invalid_agent_decision"
+
+
+def test_decision_validation_reports_fields_without_response_values(monkeypatch):
+    provider = AnthropicInvestigator(settings())
+    payload = {
+        "plan": ["Inspect"],
+        "summary": "private-response-value" * 50,
+        "action": "finish",
+        "arguments": {},
+        "answer": {"status": "insufficient_context", "claims": []},
+        "private-extra-field": "private-extra-value",
+    }
+    monkeypatch.setattr(provider, "structured", lambda *args: json.dumps(payload))
+    with pytest.raises(DomainError) as caught:
+        provider.decide({"mode": "investigate"})
+    assert "summary: string_too_long" in caught.value.message
+    assert "unknown: extra_forbidden" in caught.value.message
+    assert "private" not in caught.value.message
+    assert caught.value.code == "invalid_agent_decision"
+
+
+def test_execution_finish_keeps_uncited_results_out_of_source_claims(monkeypatch):
+    provider = AnthropicInvestigator(settings())
+    payload = {
+        "plan": ["Inspect"],
+        "summary": "Draft updated; authorized tests passed.",
+        "action": "finish",
+        "arguments": {},
+        "answer": {
+            "status": "answered",
+            "claims": [
+                {"text": "Tests passed", "citation_ids": []},
+            ],
+        },
+    }
+
+    def structured(instructions, state, schema, tokens):
+        assert (
+            "put the observed test outcome and draft-change report in the short summary"
+            in instructions
+        )
+        assert "answer.claims must contain only ORIGINAL source facts" in instructions
+        return json.dumps(payload)
+
+    monkeypatch.setattr(provider, "structured", structured)
+    with pytest.raises(DomainError, match="citation_ids: too_short"):
+        provider.decide({"mode": "edit", "test_profile": "python-unittest"})
+    payload["answer"] = {
+        "status": "answered",
+        "claims": [
+            {"text": "The original implementation strips whitespace.", "citation_ids": ["E1"]},
+        ],
+    }
+    decision = provider.decide({"mode": "edit", "test_profile": "python-unittest"})
+    assert decision.action == "finish"
+    assert decision.answer.claims[0].citation_ids == ["E1"]
+    assert "tests passed" in decision.summary
