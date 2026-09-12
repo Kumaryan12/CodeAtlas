@@ -1,0 +1,770 @@
+{
+  "created_at": "2026-09-12T18:04:42.714354+00:00",
+  "verified_core_commit": "21d6fec440773511aa6d8cfc0902094fc4995044",
+  "backend": {
+    "tests": 240,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 53.82
+  },
+  "frontend_tests": {
+    "tests": 23,
+    "failures": 0
+  },
+  "checks": {
+    "ruff": {
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    "format": {
+      "exit_code": 0,
+      "duration_seconds": 0.01
+    },
+    "web_lint": {
+      "exit_code": 0,
+      "duration_seconds": 1.96
+    },
+    "web_types": {
+      "exit_code": 0,
+      "duration_seconds": 0.95
+    },
+    "web_tests": {
+      "exit_code": 0,
+      "duration_seconds": 0.4
+    },
+    "web_build": {
+      "exit_code": 0,
+      "duration_seconds": 6.13
+    },
+    "migrations": {
+      "exit_code": 0,
+      "duration_seconds": 0.42
+    }
+  },
+  "docker_tests": 7,
+  "local_model_test_enabled": true,
+  "ci": {
+    "before": {
+      "commit": "53bddd1",
+      "conclusion": "failure",
+      "url": "https://github.com/Kumaryan12/CodeAtlas/actions/runs/34708992707",
+      "failed_check": "Sandbox output flood cleanup"
+    },
+    "after": {
+      "commit": "21d6fec",
+      "conclusion": "success",
+      "jobs_passed": 3,
+      "url": "https://github.com/Kumaryan12/CodeAtlas/actions/runs/34709965115"
+    }
+  },
+  "fresh_retrieval": {
+    "version": "rag-v1",
+    "created_at": "2026-09-12T17:59:00.404809+00:00",
+    "corpus_sha256": "c0186855bbf63e8baa7cfae422f29e84b1b2b488b493f3d22628ee96a3816707",
+    "cases_sha256": "df00970c93e17e0b95887597d52bd9595e720b2e693bbe32926ad8c01b8899cc",
+    "embedding_fingerprint": "local:sentence-transformers/all-MiniLM-L6-v2:1110a243fdf4706b3f48f1d95db1a4f5529b4d41:windows254-weighted-mean-v1:symbols-v2",
+    "chunks": 40,
+    "index_duration_ms": 2265,
+    "limitations": [
+      "24 authored synthetic cases, not independently held out.",
+      "Expected-symbol citation overlap is a proxy, not semantic faithfulness.",
+      "Single run; latency is machine/provider dependent.",
+      "HTTP token usage excludes local CPU embeddings."
+    ],
+    "comparisons": {
+      "lexical": {
+        "case_count": 18,
+        "metrics": {
+          "precision@1": 0.8888888888888888,
+          "recall@1": 0.7268518518518519,
+          "mrr@1": 0.8888888888888888,
+          "ndcg@1": 0.8888888888888888,
+          "complete_evidence@1": 0.6666666666666666,
+          "precision@3": 0.4074074074074074,
+          "recall@3": 0.8981481481481483,
+          "mrr@3": 0.9444444444444444,
+          "ndcg@3": 0.900023164399357,
+          "complete_evidence@3": 0.7777777777777778,
+          "precision@6": 0.25,
+          "recall@6": 0.9675925925925927,
+          "mrr@6": 0.9444444444444444,
+          "ndcg@6": 0.9235753700036847,
+          "complete_evidence@6": 0.8888888888888888
+        },
+        "by_category": {
+          "adversarial": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "exact": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "multi_file": {
+            "precision@1": 1.0,
+            "recall@1": 0.2708333333333333,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 0.0,
+            "precision@3": 0.6666666666666666,
+            "recall@3": 0.5416666666666666,
+            "mrr@3": 1.0,
+            "ndcg@3": 0.7346393630113782,
+            "complete_evidence@3": 0.0,
+            "precision@6": 0.5416666666666666,
+            "recall@6": 0.8541666666666666,
+            "mrr@6": 1.0,
+            "ndcg@6": 0.8406242882308522,
+            "complete_evidence@6": 0.5
+          },
+          "paraphrase": {
+            "precision@1": 0.6666666666666666,
+            "recall@1": 0.6666666666666666,
+            "mrr@1": 0.6666666666666666,
+            "ndcg@1": 0.6666666666666666,
+            "complete_evidence@1": 0.6666666666666666,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 0.8333333333333334,
+            "ndcg@3": 0.8769765845238192,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 0.8333333333333334,
+            "ndcg@6": 0.8769765845238192,
+            "complete_evidence@6": 1.0
+          }
+        }
+      },
+      "semantic": {
+        "case_count": 18,
+        "metrics": {
+          "precision@1": 0.8888888888888888,
+          "recall@1": 0.7268518518518519,
+          "mrr@1": 0.8888888888888888,
+          "ndcg@1": 0.8888888888888888,
+          "complete_evidence@1": 0.6666666666666666,
+          "precision@3": 0.4259259259259259,
+          "recall@3": 0.9120370370370371,
+          "mrr@3": 0.9444444444444444,
+          "ndcg@3": 0.9164721594530163,
+          "complete_evidence@3": 0.7777777777777778,
+          "precision@6": 0.24074074074074073,
+          "recall@6": 0.9537037037037037,
+          "mrr@6": 0.9444444444444444,
+          "ndcg@6": 0.920478878463969,
+          "complete_evidence@6": 0.8333333333333334
+        },
+        "by_category": {
+          "adversarial": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "exact": {
+            "precision@1": 0.8333333333333334,
+            "recall@1": 0.8333333333333334,
+            "mrr@1": 0.8333333333333334,
+            "ndcg@1": 0.8333333333333334,
+            "complete_evidence@1": 0.8333333333333334,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 0.9166666666666666,
+            "ndcg@3": 0.9384882922619097,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 0.9166666666666666,
+            "ndcg@6": 0.9384882922619097,
+            "complete_evidence@6": 1.0
+          },
+          "multi_file": {
+            "precision@1": 1.0,
+            "recall@1": 0.2708333333333333,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 0.0,
+            "precision@3": 0.75,
+            "recall@3": 0.6041666666666666,
+            "mrr@3": 1.0,
+            "ndcg@3": 0.8086598407528445,
+            "complete_evidence@3": 0.0,
+            "precision@6": 0.5,
+            "recall@6": 0.7916666666666666,
+            "mrr@6": 1.0,
+            "ndcg@6": 0.8266900763021322,
+            "complete_evidence@6": 0.25
+          },
+          "paraphrase": {
+            "precision@1": 0.8333333333333334,
+            "recall@1": 0.8333333333333334,
+            "mrr@1": 0.8333333333333334,
+            "ndcg@1": 0.8333333333333334,
+            "complete_evidence@1": 0.8333333333333334,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 0.9166666666666666,
+            "ndcg@3": 0.9384882922619097,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 0.9166666666666666,
+            "ndcg@6": 0.9384882922619097,
+            "complete_evidence@6": 1.0
+          }
+        }
+      },
+      "hybrid": {
+        "case_count": 18,
+        "metrics": {
+          "precision@1": 1.0,
+          "recall@1": 0.837962962962963,
+          "mrr@1": 1.0,
+          "ndcg@1": 1.0,
+          "complete_evidence@1": 0.7777777777777778,
+          "precision@3": 0.4074074074074074,
+          "recall@3": 0.8981481481481483,
+          "mrr@3": 1.0,
+          "ndcg@3": 0.9444444444444444,
+          "complete_evidence@3": 0.7777777777777778,
+          "precision@6": 0.25925925925925924,
+          "recall@6": 0.9814814814814815,
+          "mrr@6": 1.0,
+          "ndcg@6": 0.9751480942321591,
+          "complete_evidence@6": 0.9444444444444444
+        },
+        "by_category": {
+          "adversarial": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "exact": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "multi_file": {
+            "precision@1": 1.0,
+            "recall@1": 0.2708333333333333,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 0.0,
+            "precision@3": 0.6666666666666666,
+            "recall@3": 0.5416666666666666,
+            "mrr@3": 1.0,
+            "ndcg@3": 0.75,
+            "complete_evidence@3": 0.0,
+            "precision@6": 0.5833333333333333,
+            "recall@6": 0.9166666666666666,
+            "mrr@6": 1.0,
+            "ndcg@6": 0.888166424044716,
+            "complete_evidence@6": 0.75
+          },
+          "paraphrase": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          }
+        }
+      },
+      "hybrid_graph": {
+        "case_count": 18,
+        "metrics": {
+          "precision@1": 1.0,
+          "recall@1": 0.837962962962963,
+          "mrr@1": 1.0,
+          "ndcg@1": 1.0,
+          "complete_evidence@1": 0.7777777777777778,
+          "precision@3": 0.4074074074074074,
+          "recall@3": 0.8981481481481483,
+          "mrr@3": 1.0,
+          "ndcg@3": 0.9444444444444444,
+          "complete_evidence@3": 0.7777777777777778,
+          "precision@6": 0.24074074074074073,
+          "recall@6": 0.9537037037037037,
+          "mrr@6": 1.0,
+          "ndcg@6": 0.9583681366512918,
+          "complete_evidence@6": 0.8333333333333334
+        },
+        "by_category": {
+          "adversarial": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "exact": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          },
+          "multi_file": {
+            "precision@1": 1.0,
+            "recall@1": 0.2708333333333333,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 0.0,
+            "precision@3": 0.6666666666666666,
+            "recall@3": 0.5416666666666666,
+            "mrr@3": 1.0,
+            "ndcg@3": 0.75,
+            "complete_evidence@3": 0.0,
+            "precision@6": 0.5,
+            "recall@6": 0.7916666666666666,
+            "mrr@6": 1.0,
+            "ndcg@6": 0.8126566149308133,
+            "complete_evidence@6": 0.25
+          },
+          "paraphrase": {
+            "precision@1": 1.0,
+            "recall@1": 1.0,
+            "mrr@1": 1.0,
+            "ndcg@1": 1.0,
+            "complete_evidence@1": 1.0,
+            "precision@3": 0.3333333333333333,
+            "recall@3": 1.0,
+            "mrr@3": 1.0,
+            "ndcg@3": 1.0,
+            "complete_evidence@3": 1.0,
+            "precision@6": 0.16666666666666666,
+            "recall@6": 1.0,
+            "mrr@6": 1.0,
+            "ndcg@6": 1.0,
+            "complete_evidence@6": 1.0
+          }
+        }
+      }
+    }
+  },
+  "scripted_agent": {
+    "version": "agent-v1.1",
+    "created_at": "2026-09-12T17:59:07.630600+00:00",
+    "fixture_sha256": "c01b16fd5daba96fd17a0d8e15cba136c455f7da38b9fa1a13acbe756ce084bd",
+    "cases_sha256": "43790534087d130254577a9ca291d2241e1807a990f8f7d6af220ba55ea576b0",
+    "transport": "mcp",
+    "passed": true,
+    "groups": {
+      "guardrail": {
+        "passed": 4,
+        "total": 4
+      },
+      "task": {
+        "passed": 2,
+        "total": 2
+      }
+    },
+    "duration_ms": 4083,
+    "limitations": [
+      "Scripted mode measures runtime mechanics, not live model quality.",
+      "Citation checks measure references and evidence coverage, not claim entailment.",
+      "Six curated read-only cases are not a held-out benchmark or comprehensive security test.",
+      "Live failures include provider/configuration failures; inspect each result."
+    ]
+  },
+  "snapshot_checks": {
+    "snapshots": [
+      {
+        "id": "f3da9194-0a99-449e-b602-15797b1e2dc2",
+        "full_name": "Kumaryan12/airguard-ai",
+        "status": "ready",
+        "commit_sha": "4216282a1c6d13aff34f724610bf025b929cb1bb",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 12,
+          "files": 83,
+          "edges": 68,
+          "unresolved": 254,
+          "cycles": 0,
+          "unconnected": 30,
+          "scoped": true,
+          "notes": [
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 166,
+          "files": 83,
+          "edges": 0,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 83,
+          "scoped": true,
+          "notes": [
+            "Analyzed 77 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      },
+      {
+        "id": "a6af2d4f-14b0-4ff0-80db-e4522741d5ed",
+        "full_name": "Kumaryan12/F1_prediction_System",
+        "status": "ready",
+        "commit_sha": "4511a55afe9c8bc5fb531cdf430f06dcdd309034",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 5,
+          "files": 8,
+          "edges": 6,
+          "unresolved": 33,
+          "cycles": 0,
+          "unconnected": 3,
+          "scoped": true,
+          "notes": [
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 23,
+          "files": 8,
+          "edges": 4,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 4,
+          "scoped": true,
+          "notes": [
+            "Analyzed 8 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      },
+      {
+        "id": "2bd2967a-32c4-4d48-9e91-d5ddf21d21ee",
+        "full_name": "Kumaryan12/nyaysetu",
+        "status": "ready",
+        "commit_sha": "b47de39d483dadc3263a3e4906f6f5497687ffaf",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 9,
+          "files": 57,
+          "edges": 45,
+          "unresolved": 176,
+          "cycles": 0,
+          "unconnected": 30,
+          "scoped": true,
+          "notes": [
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 75,
+          "files": 57,
+          "edges": 1,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 55,
+          "scoped": true,
+          "notes": [
+            "Analyzed 50 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      },
+      {
+        "id": "d8ad7614-0a30-4b7d-b499-1e1785be78bd",
+        "full_name": "Kumaryan12/CodeAtlas",
+        "status": "partial",
+        "commit_sha": "a1dc141b6368f8280ea6a2d63ce78ada065ff122",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 10,
+          "files": 63,
+          "edges": 88,
+          "unresolved": 143,
+          "cycles": 0,
+          "unconnected": 19,
+          "scoped": true,
+          "notes": [
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 68,
+          "files": 63,
+          "edges": 3,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 58,
+          "scoped": true,
+          "notes": [
+            "Analyzed 41 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      },
+      {
+        "id": "05fed60a-e2b1-4e25-ae00-83ea43467442",
+        "full_name": "Kumaryan12/nyaysetu",
+        "status": "ready",
+        "commit_sha": "b47de39d483dadc3263a3e4906f6f5497687ffaf",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 8,
+          "files": 57,
+          "edges": 44,
+          "unresolved": 177,
+          "cycles": 0,
+          "unconnected": 32,
+          "scoped": true,
+          "notes": [
+            "Legacy imports lack names/locations and alias configs. Reimport for full coverage.",
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 90,
+          "files": 57,
+          "edges": 1,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 55,
+          "scoped": true,
+          "notes": [
+            "Analyzed 50 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      },
+      {
+        "id": "bbf3aef7-c759-44bb-9393-539aca9cbb25",
+        "full_name": "Kumaryan12/CodeAtlas",
+        "status": "partial",
+        "commit_sha": "83ff08dc27e0bff0682c038c61b07f1235452996",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 8,
+          "files": 53,
+          "edges": 55,
+          "unresolved": 139,
+          "cycles": 0,
+          "unconnected": 24,
+          "scoped": true,
+          "notes": [
+            "Legacy imports lack names/locations and alias configs. Reimport for full coverage.",
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 41,
+          "files": 53,
+          "edges": 1,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 51,
+          "scoped": true,
+          "notes": [
+            "Analyzed 34 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      },
+      {
+        "id": "5bb904f8-5554-4aff-af6d-5c77fbea70a0",
+        "full_name": "Kumaryan12/CodeAtlas",
+        "status": "ready",
+        "commit_sha": "0bb4fb1c2eca9700b4bc3c87cd33ce707251d154",
+        "dependency": {
+          "http_status": 200,
+          "duration_ms": 8,
+          "files": 41,
+          "edges": 49,
+          "unresolved": 108,
+          "cycles": 0,
+          "unconnected": 19,
+          "scoped": true,
+          "notes": [
+            "Legacy imports lack names/locations and alias configs. Reimport for full coverage.",
+            "Static imports only. Python roots are inferred; external dependencies are not downloaded."
+          ]
+        },
+        "data_flow": {
+          "http_status": 200,
+          "duration_ms": 42,
+          "files": 41,
+          "edges": 1,
+          "unresolved": 0,
+          "cycles": 0,
+          "unconnected": 39,
+          "scoped": true,
+          "notes": [
+            "Analyzed 32 Python files. JavaScript/TypeScript data flow is not analyzed.",
+            "Potential Python value flow: a function return is passed as an argument to another local function.",
+            "Not a runtime trace. Branches may not execute. No LLM calls or repository execution.",
+            "Tracks explicit assignments, nested calls and local helper returns; does not track parameter forwarding, class methods, mutation, external calls, loops, try blocks or dynamic dispatch.",
+            "Files without arrows may have unsupported flow; absence of an arrow does not prove isolation."
+          ]
+        }
+      }
+    ],
+    "/api/health": 200,
+    "/api/ready": 200
+  },
+  "live_repair": {
+    "version": "repair-v1",
+    "created_at": "2026-09-12T18:02:24.133304+00:00",
+    "fixture_sha256": "956dd02bcea6728d89e2a9a32b3c921ad7a31ace1ca26108c1f3b2bffe794a84",
+    "model": "claude-sonnet-5",
+    "transport": "mcp",
+    "status": "failed",
+    "error_code": "invalid_agent_decision",
+    "passed": false,
+    "checks": {
+      "baseline_failed": true,
+      "run_completed": false,
+      "only_auth_changed": true,
+      "snapshot_unchanged": true,
+      "independent_tests_passed": true,
+      "agent_tested_final_draft": true
+    },
+    "usage": {
+      "recorded_calls": 8,
+      "tokens_complete": true,
+      "known_input_tokens": 29563,
+      "known_output_tokens": 2698,
+      "provider_duration_ms": 41852,
+      "estimated_cost_usd": null
+    },
+    "duration_ms": 45123,
+    "limitations": [
+      "One authored synthetic bug; not real-repository repair accuracy.",
+      "No patch is applied to a user's repository or pushed upstream.",
+      "Final explanation citation entailment is not automatically graded."
+    ]
+  },
+  "browser_visual_verification": "Unavailable: no connected browser session.",
+  "historical_rag": {
+    "initial_attempts": 24,
+    "initial_accepted": 5,
+    "retry_attempts": 19,
+    "retry_accepted": 13,
+    "latest_accepted_questions": 18,
+    "unique_questions": 24,
+    "unsupported_abstentions": 6,
+    "unsupported_questions": 6,
+    "known_input_tokens": 28063,
+    "known_output_tokens": 3406,
+    "note": "Previous live calls, not rerun in this audit. Timeout billing may be unreported; acceptance is not correctness."
+  }
+}

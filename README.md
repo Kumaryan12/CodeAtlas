@@ -17,6 +17,8 @@
 - Read-only investigations with model-selected steps, a fixed tool registry, persisted run history, live traces, and source-grounded findings.
 - Typed REST endpoints, structured ingestion logs, health/readiness checks, automated behavior tests, and local PostgreSQL Compose configuration.
 
+Latest [project audit, metrics, improvements and interview guide](docs/project-audit.md) includes fresh all-opt-in tests, verified hosted CI, and the mixed outcome of a live Claude repair demo.
+
 ## Quick start
 
 Prerequisites: Node.js 22.13+, npm, Python 3.12+, Docker Desktop or a running Docker daemon with Compose. Development is verified on macOS with Node 26 and Python 3.14. Use one API worker for this synchronous MVP.
