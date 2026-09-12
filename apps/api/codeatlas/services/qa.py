@@ -26,6 +26,10 @@ logger = logging.getLogger("codeatlas.qa")
 
 
 def fingerprint(settings: Settings) -> str:
+    if settings.embedding_provider == "local":
+        from codeatlas.ai.local_embeddings import MODEL, REVISION, VERSION
+
+        return f"local:{MODEL}:{REVISION}:{VERSION}:{CHUNK_VERSION}"
     return f"openai:{settings.embedding_model}:{CHUNK_VERSION}"
 
 
@@ -37,12 +41,17 @@ def index_status(session: Session, repository: Repository, settings: Settings) -
         else "ready"
         if index.fingerprint == fingerprint(settings)
         else "stale",
-        configured=bool(settings.openai_api_key.get_secret_value().strip()),
-        provider="OpenAI",
+        configured=settings.embedding_provider == "local"
+        or bool(settings.openai_api_key.get_secret_value().strip()),
+        provider="Local CPU" if settings.embedding_provider == "local" else "OpenAI",
         reasoning_configured=settings.reasoning_configured,
         reasoning_provider="Anthropic" if settings.reasoning_provider == "anthropic" else "OpenAI",
         reasoning_key_name=settings.reasoning_key_name,
-        embedding_model=settings.embedding_model,
+        embedding_model=(
+            "sentence-transformers/all-MiniLM-L6-v2"
+            if settings.embedding_provider == "local"
+            else settings.embedding_model
+        ),
         answer_model=settings.reasoning_model,
         chunk_count=index.chunk_count if index else 0,
         skipped_long_lines=index.skipped_long_lines if index else 0,

@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     reasoning_provider: Literal["anthropic", "openai"] = "anthropic"
     anthropic_api_key: SecretStr = SecretStr("")
     openai_api_key: SecretStr = SecretStr("")
+    embedding_provider: Literal["openai", "local"] = "openai"
     embedding_model: str = Field(default="text-embedding-3-small", min_length=1, max_length=100)
     answer_model: str | None = Field(default=None, min_length=1, max_length=100)
 

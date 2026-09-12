@@ -90,7 +90,7 @@ export function RepositoryAsk({ repositoryId, onOpenSource }: {
     {index && <div className="ask-index">
       {!index.configured ? <p>Embeddings are not configured. Set <code>CODEATLAS_OPENAI_API_KEY</code> in the API server’s environment and restart the API, then refresh status.</p>
         : index.status !== "ready" ? <><p>{index.status === "stale" ? "The embedding model changed. Rebuild this snapshot’s index." : "Build a semantic index to enable questions for this snapshot."}</p>
-          <p className="muted">This sends eligible source excerpts to {index.provider} for embeddings. Model usage may incur charges.</p>
+          <p className="muted">{index.provider === "Local CPU" ? "Embeddings run on the API server CPU. Claude receives retrieved excerpts when you ask a question." : `This sends eligible source excerpts to ${index.provider} for embeddings. Model usage may incur charges.`}</p>
           <button className="primary-button" disabled={!!busy} onClick={() => void buildIndex()}>{busy === "index" ? "Generating embeddings…" : "Build semantic index"}</button></>
           : <p><strong>{index.chunk_count.toLocaleString()} excerpts indexed</strong> · {index.embedding_model}</p>}
       {!index.reasoning_configured && <p>Answers require <code>{index.reasoning_key_name}</code> on the API server. Context preview only needs embeddings.</p>}

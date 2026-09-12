@@ -138,7 +138,13 @@ def main():
             {
                 "retrieval_version": RETRIEVAL_VERSION,
                 "mode": "live" if args.live else "offline_lexical_only",
-                "embedding_model": settings.embedding_model if args.live else None,
+                "embedding_model": (
+                    "sentence-transformers/all-MiniLM-L6-v2"
+                    if settings.embedding_provider == "local"
+                    else settings.embedding_model
+                )
+                if args.live
+                else None,
                 "cases": len(cases),
                 "chunks": len(chunks),
                 "dependency_edges": len(edges),

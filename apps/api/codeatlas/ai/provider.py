@@ -68,6 +68,10 @@ class OpenAIProvider:
         )
 
     def embed(self, texts: list[str]) -> list[list[float]]:
+        if self.settings.embedding_provider == "local":
+            from codeatlas.ai.local_embeddings import embed
+
+            return embed(texts)
         data = self._post(
             "embeddings",
             {"model": self.settings.embedding_model, "input": texts, "encoding_format": "float"},
@@ -126,7 +130,7 @@ def post_json(url: str, headers: dict[str, str], payload: dict) -> dict:
     http_status = None
     try:
         with httpx.Client(
-            timeout=httpx.Timeout(10, connect=5), trust_env=False, follow_redirects=False
+            timeout=httpx.Timeout(30, connect=5), trust_env=False, follow_redirects=False
         ) as client:
             with client.stream(
                 "POST",
